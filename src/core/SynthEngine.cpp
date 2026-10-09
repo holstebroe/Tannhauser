@@ -10,7 +10,8 @@ namespace {
 constexpr double kMiddleC = 261.6255653005986;   // MIDI 60 at 8' (Yamaha "C3"), spec 02 §1
 constexpr double kKv025Hz = 130.8127826502993;   // KV 0.25 V = C2 at 8' (IG00153 table)
 constexpr double kFeetRatio[6] = { 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 };
-constexpr double kHpfWeight = 0.47;              // kHP: HPF Vfc via 100k vs LPF via 47k (M board), spec 02 §4, P-4
+constexpr double kHpfWeight = 0.47;              // HPF slider: Vfc via 100k vs LPF via 47k (M board), spec 02 §4
+constexpr double kHpfOctaveRatio = 0.5;          // HPF moves half the LPF's octaves (Cherry, measured), P-4
 constexpr double kBusGain = 0.15;
 
 inline double semisToHz(double semis) { return kMiddleC * std::exp2((semis - 60.0) / 12.0); }
@@ -422,13 +423,16 @@ double SynthEngine::renderVoiceSample(Voice& v, int vi, double noise, double sub
         const double touchBrillV = 4.0 * c.initBrill * v.velocity + 5.0 * c.afterBrill * v.pressure;
         const double mods = fegV + 4.0 * p[P_BRILLIANCE] + touchBrillV + v.kbdBrillV + subVcfV;
         const double vfL = clampd(c.lpfV + mods, 0.0, 20.0);
-        const double vfH = clampd(kHpfWeight * (c.hpfV + mods), 0.0, 20.0);
-        lastVfL_[vi][l] = vfL;
-        lastVfH_[vi][l] = vfH;
         const double track = fKv / kKv025Hz * 200.0 * (1.0 + cal.cutScale * drift);   // Hz per volt
         const double fcMax = 0.45 * fsOs_;
         const double fcL = clampd(vfL * track, 20.0, fcMax);
-        const double fcH = clampd(vfH * track, 20.0, fcMax);
+        // HPF: its own slider through the 0.47 divider, moved by half the
+        // octaves the modulators move the LPF (spec 02 §4).
+        const double ratio = (vfL + 1.0) / (c.lpfV + 1.0);
+        const double hpOct = kHpfOctaveRatio == 0.5 ? std::sqrt(ratio) : std::pow(ratio, kHpfOctaveRatio);
+        const double fcH = clampd(std::max(20.0, kHpfWeight * c.hpfV * track) * hpOct, 20.0, fcMax);
+        lastVfL_[vi][l] = vfL;
+        lastVfH_[vi][l] = fcH / track;
         if (updateFilters_) {
             // Q falls from QA toward 0.5 above fq (spec 02 §4).
             auto damping = [](double qa, double fc) {

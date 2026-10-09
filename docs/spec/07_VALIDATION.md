@@ -11,7 +11,7 @@ failing low level invalidates everything above it.
 | T2 | Linear law: add a fixed offset, measure error in Hz | constant in Hz across keys (≤ 2 %) |
 | T3 | Footage ratios | 0.5, 1, 1.5, 2, 3, 4 within 1 cent |
 | T4 | LPF small-signal response at Res max for fc 100 Hz, 1 kHz, 5 kHz | peak gain falls with fc; < +6 dB above 5 kHz; never self-oscillates (impulse decays) |
-| T5 | HPF→LPF tracking: FEG sweep moves HPF by kHP of the LPF volts | ratio 0.47 ± 0.01 |
+| T5 | HPF→LPF tracking: an FEG sweep moves the HPF by half the LPF's octaves | ratio 0.5 ± 0.01 |
 | T6 | Filter EG shapes | IL only: starts −5·il V, ends −5·il V; AL only: peak +5·al V, rests 0 V |
 | T7 | Envelope time law | A=0 → ≈1 ms, A=1 → ≈1 s; D/R 10 ms…10 s (±10 %) |
 | T8 | Per-voice touch | pressure on one voice of a chord changes only that voice |

@@ -140,10 +140,9 @@ private:
     // Global modulators.
     Rng rng_{0x7A5E};
     Rng noiseRng_{0x5EED};
-    double subPhase_ = 0.0, subValue_ = 0.0, subRandom_ = 0.0, subNoiseState_ = 0.0, subOut_ = 0.0;
+    double subPhase_ = 0.0, subRandom_ = 0.0, subNoiseState_ = 0.0, subOut_ = 0.0;
     double pwmPhase_[2]{ 0.0, 0.37 };
     LineControls lc_[2];
-    double vibSemis_ = 0.0;   // global sub-osc vibrato before per-voice touch depth
 
     // Ring modulator.
     double rmEnv_ = 0.0;

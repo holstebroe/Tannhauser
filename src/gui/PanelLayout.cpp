@@ -1,5 +1,7 @@
 #include "PanelLayout.hpp"
 #include "core/Params.hpp"
+#include <initializer_list>
+#include <utility>
 
 namespace tannhauser {
 

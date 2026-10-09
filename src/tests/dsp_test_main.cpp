@@ -139,7 +139,7 @@ static void testFilterEnvelope() {
             CHECK(std::fabs(rest) < 0.05, "T6 AL rest %.3f V want 0", rest);
         }
     }
-    // T5: the HPF sees kHP = 0.47 of the LPF's volts (slider and modulation).
+    // T5: the HPF moves half the octaves of the LPF (Cherry, measured).
     SynthEngine e;
     e.setSampleRate(sr);
     ParamValues v = defaultValues();
@@ -149,8 +149,9 @@ static void testFilterEnvelope() {
     e.noteOn(60, 0.0);
     std::vector<float> l(64), r(64);
     for (int i = 0; i < 40; ++i) e.process(l.data(), r.data(), 64);
-    const double dL = e.lastVfL(0, 0) - 7.0, dH = e.lastVfH(0, 0) - 0.47 * 2.0;
-    CHECK(std::fabs(dH / dL - 0.47) < 0.01, "T5 HPF/LPF modulation ratio %.3f want 0.47", dH / dL);
+    const double octL = std::log2((e.lastVfL(0, 0) + 1.0) / 8.0);
+    const double octH = std::log2(e.lastVfH(0, 0) / (0.47 * 2.0));
+    CHECK(octL > 0.5 && std::fabs(octH / octL - 0.5) < 0.01, "T5 HPF/LPF octave ratio %.3f want 0.5 (LPF %.2f oct)", octH / octL, octL);
 }
 
 static void testEnvelopeTimes() {

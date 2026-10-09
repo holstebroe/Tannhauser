@@ -64,10 +64,17 @@ key voltage, not by footage.
 
 ```
 mods  = FEG(t) + Vbrill_global + Vtouch_brill + Vkbd_brill + Vsub_vcf
-Vf_L  = 10·lpf + mods
-Vf_H  = kHP · (10·hpf + mods) ,        kHP = 0.47  [S M board p.41: buffer → HPF Vfc 100 kΩ, → LPF Vfc 47 kΩ;
-                                                  R51/R52 modulator weights 0.32 not yet folded in, P-4]
+Vf_L  = 10·lpf + mods                                   clamp [0, 20] V
+fc_L  = law(Vf_L)
+fc_H  = max(20 Hz, law(0.47 · 10·hpf)) · sqrt((Vf_L + 1) / (10·lpf + 1))
 ```
+
+The HPF slider reaches its control pin through the 0.47 divider [S M board p.41: buffer →
+HPF Vfc 100 kΩ, LPF Vfc 47 kΩ]. The modulators move the HPF by **half the octaves** they move
+the LPF [S Cherry Audio, measured on two units; §7.1] — implemented in the octave domain
+(`sqrt` of the LPF's control ratio, with a 1 V offset so a closed LPF slider does not explode
+the ratio) [D]. This keeps an HPF set to 0 out of the way while still giving the
+"always-bandpass" movement. (Plan P-4: the R51/R52 0.32 weights are not used.)
 
 with: `FEG` from §5 (−5…+5 V); global Brilliance ±4 V; touch brilliance
 `4 V·initBrill·velocity + 5 V·afterBrill·pressure`; keyboard brilliance ±3 V (doc 03 §6);

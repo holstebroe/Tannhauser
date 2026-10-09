@@ -85,6 +85,20 @@ def factory_presets():
     return ft, fc
 
 
+def valid_keys():
+    """Parameter keys from src/core/Params.cpp (line keys get l1./l2.)."""
+    import re
+    src = (ROOT / "src/core/Params.cpp").read_text()
+    line_block = src[src.index("kLine[LP_COUNT]"):src.index("kGlobal[")]
+    glob_block = src[src.index("kGlobal["):src.index("struct Table")]
+    keys = set()
+    for k in re.findall(r'\{ "([A-Za-z]+)",', line_block):
+        keys.add("l1." + k)
+        keys.add("l2." + k)
+    keys.update(re.findall(r'\{ "([a-zA-Z.]+)",', glob_block))
+    return keys
+
+
 def cpp_string(s):
     return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
@@ -96,6 +110,11 @@ def main():
     dupes = {n for n in names if names.count(n) > 1}
     if dupes:
         raise SystemExit(f"duplicate preset names: {sorted(dupes)}")
+    keys = valid_keys()
+    for n, vals in presets:
+        bad = [k for k in vals if k not in keys]
+        if bad:
+            raise SystemExit(f"{n}: unknown parameter keys {bad}")
     for n, _ in presets:
         if len(n) < 4 or n[2] != " ":
             raise SystemExit(f"preset name needs a two-letter category prefix: {n!r}")

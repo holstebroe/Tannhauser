@@ -59,6 +59,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 1.9 | 2× oversampling, half-band decimation of the mono bus | ✅ |
 | 1.10 | 4× mode for audio-rate sub-osc / ring mod settings | ⬜ |
 | 1.11 | VCO option C (physical relaxation core) if scope data shows curved reset | 🔬 |
+| 1.12 | CPU: 16 lines at 2× cost ~0.15 real-time factor on one core (T15). Candidates: SIMD across the 8 voices of a line, control-rate (every 4th sample) filter coefficients, skip silent lines (level 0 or mix gain 0) | ⬜ |
 
 ### WP2 — Global, performance and bus (spec 03)
 | ID | Issue | Status |
@@ -73,6 +74,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2.8 | Sustain I/II, sustain time, pedal | ✅ |
 | 2.9 | Ring modulator with monophonic AD envelope | ✅ |
 | 2.10 | Chorus/tremolo (BBD-style, option A) | 🟡 values are defaults; OE1/OE2 pages unread |
+| 2.15 | CC64 follows the CS-80 (release extension). An optional "hold" mode for MIDI keyboards [A] | ⬜ |
 | 2.11 | BBD model (option B: clocked S&H, Holters–Parker) | ⬜ |
 | 2.12 | Wah circuit on EXP pedal (PRA) | ⬜ |
 | 2.13 | Reverb [A] Dattorro plate | ✅ |
@@ -111,7 +113,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 ### WP6 — Validation (spec 07)
 | ID | Issue | Status |
 | --- | --- | --- |
-| 6.1 | `tannhauser_dsp_test` T1–T15 | 🟡 see test source for the implemented subset |
+| 6.1 | `tannhauser_dsp_test` T1–T13, T15 (T14 is in the GUI test) | 🟡 T4 checks only "no self-oscillation", not the peak-gain-vs-cutoff curve; T13 checks RMS, not f0 |
 | 6.2 | `tannhauser_gui_test` offscreen render + interaction | ✅ |
 | 6.3 | `tannhauser_render` offline WAV renderer | ✅ |
 | 6.4 | Reference-audio calibration loop (Acidus-style fit tools) | 🔬 |
@@ -122,7 +124,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | P-1 | **Time-row polarity of the factory matrices.** Doc §14.5 infers "higher V = shorter time" from plucked tones (A/R rows at 10 V). This fails for String 1 (VCA A 8.2 V → 3.5 ms attack) and Brass (R 10 V → 10 ms). The opposite polarity fails worse (Harpsichord release 10 s). Evidence for "higher V = longer": SUB-board sustain diodes OR a *higher* voltage onto RF/RA when the pedal lengthens release. Resolve with a recording of factory String 1/Harpsichord 1, or the TWS/SUB scaling. | inverted (02 §9) | 🔬 |
 | P-2 | Slider → time law and curve shapes | exponential, RC curves (02 §5) | 🔬 |
 | P-3 | HPF/LPF cutoff law at the slider and tracking | linear Vf, 100 % KV tracking (02 §4) | 🔬 |
-| P-4 | HPF:LPF modulation ratio (0.32–0.47 weights) | kHP = 0.47 on slider + mods | 🔬 |
+| P-4 | HPF:LPF modulation (resistor weights 0.32–0.47 vs Cherry's "half the octaves") | HPF slider ×0.47, modulation = half the LPF octaves (02 §4) | 🔬 |
 | P-5 | Sub-osc, PWM LFO, ring-mod, chorus rates | 03 §3/4/9/11 | 🔬 |
 | P-6 | Saw start pulse shape per card | 2 %, +0.2, ±30 % | 🔬 |
 | P-7 | Ribbon range, scoop depth/speed, detune range | ±1 oct, 2 st/60 ms, 12 Hz | 🔬 |
@@ -151,5 +153,14 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 
 ## Progress log
 
-- 2026-10-09 — Spec condensed from the compendiums; project bootstrapped; first complete
-  engine, presets, GUI and tests (see statuses above).
+- 2026-10-09 — Spec condensed from the compendiums; project bootstrapped from Acidus; first
+  complete engine (all of WP1/WP2 except the items left open), CLAP wrapper, 102 presets
+  (1 init + 22 FT + 11 FC + 68 library incl. 2 IN templates), CS-80 panel with tone selector,
+  preset menu, ribbon and keyboard. `tannhauser_dsp_test` 147 checks and
+  `tannhauser_gui_test` 272 checks pass; the `.clap` was smoke-tested in a dlopen host under
+  Xvfb (GUI create/show/process/destroy).
+- 2026-10-09 — Calibration decisions while voicing: Level slider is linear (B10K into the VCA
+  LI input); the HPF slider goes through the 0.47 divider and modulators move the HPF by half
+  the LPF's octaves (the first draft's volt-weighted HPF made plucks ~10 dB too thin).
+- Next suggested steps: P-1 (time polarity) with a reference recording; 1.5 nonlinear SVF;
+  1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

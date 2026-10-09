@@ -1,6 +1,7 @@
 #include "Effects.hpp"
 #include <algorithm>
 #include <cmath>
+#include <iterator>
 
 namespace tannhauser {
 

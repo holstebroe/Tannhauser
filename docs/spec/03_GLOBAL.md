@@ -95,7 +95,8 @@ implemented yet (plan WP7).
 - Chorus: mono in → BBD-like modulated delay with two taps, each tap band-limited (8 kHz
   2-pole low-pass before and after), BBD noise floor −80 dB. Base delays 7 ms and 11 ms; LFO
   `f = 0.2 Hz · 40^speed` mixed with a 6.0 Hz vibrato component at 0.15 of the depth;
-  depth `±(0.2…4 ms)·depth`. L = dry + tap A, R = dry + tap B, taps in antiphase.
+  depth `±(0.2…4 ms)` set by Depth. Tap A moves with the LFO, tap B against it;
+  `L = dry·(1 − 0.3c) + 0.7c·tapA`, `R = dry·(1 − 0.3c) + 0.7c·tapB` (c = chorus on, 20 ms fade).
 - Tremolo: stereo antiphase amplitude modulation, rate `0.5 Hz · 20^speed`, depth 0..1.
 - With both off: L = R = mono (as on the hardware).
 
@@ -108,5 +109,5 @@ plan WP8.
 
 ## 13. Output
 
-`L,R × volume² × 0.8`, then a soft clip `tanh` at ±1.2 (the "hot" post-mix VCA, §7.1
-unverified) [D].
+`L,R × 1.6·volume²`, then a soft clip `tanh` (the "hot" post-mix VCA, §7.1 unverified) [D].
+The voice bus is scaled by 0.15 before the ring modulator.
