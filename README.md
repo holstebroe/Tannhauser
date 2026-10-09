@@ -19,7 +19,8 @@ build specification in `docs/spec/`:
   frequency-dependent damping that never self-oscillates, and the HPF following the LPF at
   half the octaves ("always bandpass").
 - **IL/AL filter envelope** centred on the cutoff slider (IG00152) and the VCA ADSR (IG00159)
-  with the chips' stated time ranges.
+  with the hardware's time ranges, plus an added **Long** mode (attack to 10 s, release to
+  40 s) for slow-swelling Blade Runner pads.
 - **Polyphonic touch**: velocity and polyphonic aftertouch to level and brilliance per voice,
   aftertouch vibrato/speed/filter, initial pitch-bend scoop.
 - **Performance section**: sub-oscillator (6 waveforms, into the audio range), keyboard

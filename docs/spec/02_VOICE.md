@@ -60,6 +60,11 @@ fc = 1000 Hz × (Vf / 5 V) × (f_key8 / 130.81 Hz) ,   f_key8 = key frequency at
 So at Vf = 10 V the cutoff is ~15.3 × the 8′ fundamental; tracking is 100 % and done by the
 key voltage, not by footage.
 
+*Not adopted:* the Arturia CS-80 V manual (§5.2.1.3) lists HPF 26.8 Hz–16.2 kHz and LPF
+37.1 Hz–22.3 kHz. Both spans are ~600:1, i.e. an exponential slider map in that emulation, with
+no key stated. That conflicts with the IG00156 data behind the linear law above, so the law
+stays; plan P-3 records the conflict.
+
 **Control-voltage sums** (volts, summed before the law — G§2 "sum in the circuit domain"):
 
 ```
@@ -107,12 +112,19 @@ decay/release are exponential with `τ = T / 2.3` (T = time to 10 %). Retrigger 
 current value (no reset).
 
 **Time law** [S ranges, D curve]: `T = Tmin · (Tmax/Tmin)^x`, x = slider position:
-attack 1 ms…1 s, decay 10 ms…10 s, release 10 ms…10 s.
+attack 2 ms…580 ms, decay 2 ms…8.75 s, release 2 ms…11 s. Ranges from the Arturia CS-80 V
+manual §5.2.1.3, an emulation documented against the hardware (secondary source; replaced
+the earlier 1 ms…1 s / 10 ms…10 s defaults on 2026-10-09).
+
+**Long envelope mode** [A] (`env.long`, stored per patch; the same manual's "Long" mode, a
+global setting there): the filter and VCA envelope ranges become attack 2 ms…10 s,
+decay 2 ms…25 s, release 2 ms…40 s, for slow-swelling pads. Sustain time and the ring-mod
+envelope are not affected.
 
 ## 6. VCA envelope IG00159 — ADSR [S]
 
-Same time law and ranges (A 1 ms–1 s, D 10 ms–10 s, R 10 ms–10 s); sustain `S = vegS` (linear
-0..1). Attack is RC toward 1.3 with stop at 1.0; decay and release exponential (τ = T/2.3).
+Same time law; ranges A 2 ms–885 ms, D 2 ms–7.35 s, R 2 ms–11.5 s [S Arturia manual §5.2.1.4],
+Long mode [A] as in §5; sustain `S = vegS` (linear 0..1). Attack is RC toward 1.3 with stop at 1.0; decay and release exponential (τ = T/2.3).
 Release time while the **sustain pedal** is down: `T_R = T(vegR) + T_sustain` (doc 03 §8) —
 same for the filter envelope release.
 

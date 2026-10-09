@@ -329,7 +329,7 @@ bool TannhauserClap::paramsValue(clap_id id, double* out) const {
 
 bool TannhauserClap::paramsValueToText(clap_id id, double value, char* buf, uint32_t cap) const {
     if (id >= PARAM_COUNT || !buf || cap == 0) return false;
-    paramValueText(id, value, buf, cap);
+    paramValueText(id, value, buf, cap, values_[P_ENV_LONG].load(std::memory_order_relaxed) >= 0.5);
     return true;
 }
 
@@ -346,12 +346,14 @@ bool TannhauserClap::paramsTextToValue(clap_id id, const char* text, double* out
     // Plain sliders are shown 0..10, bipolar -10..+10.
     if (p.unit == ParamUnit::Plain || p.unit == ParamUnit::Bipolar) v /= 10.0;
     if (p.unit == ParamUnit::Percent) v /= 100.0;
-    if (p.unit == ParamUnit::AttackTime || p.unit == ParamUnit::DecayTime) {
+    if (p.unit == ParamUnit::Time) {
         double sec = v;
         if (std::strstr(text, "ms")) sec = v / 1000.0;
-        const double tmin = p.unit == ParamUnit::AttackTime ? 0.001 : 0.010;
-        v = sec > 0.0 ? std::log(sec / tmin) / std::log(1000.0) : 0.0;
+        TimeLaw law = TimeLaw::Sustain;
+        paramTimeLaw(id, &law);
+        v = timePos(law, sec, values_[P_ENV_LONG].load(std::memory_order_relaxed) >= 0.5);
     }
+    if (p.unit == ParamUnit::Hertz) v = paramRatePos(id, v);
     *out = clampParam(id, v);
     return true;
 }

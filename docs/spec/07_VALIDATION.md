@@ -13,7 +13,7 @@ failing low level invalidates everything above it.
 | T4 | LPF small-signal response at Res max for fc 100 Hz, 1 kHz, 5 kHz | peak gain falls with fc; < +6 dB above 5 kHz; never self-oscillates (impulse decays) |
 | T5 | HPF→LPF tracking: an FEG sweep moves the HPF by half the LPF's octaves | ratio 0.5 ± 0.01 |
 | T6 | Filter EG shapes | IL only: starts −5·il V, ends −5·il V; AL only: peak +5·al V, rests 0 V |
-| T7 | Envelope time law | A=0 → ≈1 ms, A=1 → ≈1 s; D/R 10 ms…10 s (±10 %) |
+| T7 | Envelope time law | VCA A 2 ms…885 ms, R 2 ms…11.5 s; Long [A] A to 10 s, R to 40 s (±15 %) |
 | T8 | Per-voice touch | pressure on one voice of a chord changes only that voice |
 | T9 | Ring-mod envelope | retriggers only when all keys were up |
 | T10 | Sustain II | new note silences fading notes within 10 ms |

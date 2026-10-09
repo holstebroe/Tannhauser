@@ -139,15 +139,17 @@ PanelLayout build() {
     L.controls.push_back({ CtlType::Rocker, P_TREMOLO, 286, bt + 52, 20, 40, "TREM.", kCapWhite, 0, nullptr });
     L.controls.push_back({ CtlType::Paddle, P_FX_SPEED, 322, bt + 30, 22, 106, "SPEED", kCapGrey, 0, nullptr });
     L.controls.push_back({ CtlType::Paddle, P_FX_DEPTH, 358, bt + 30, 22, 106, "DEPTH", kCapGrey, 0, nullptr });
-    L.frames.push_back({ 396, bt + 2, 176, 146, "REVERB / EXTRA" });
+    L.frames.push_back({ 396, bt + 2, 212, 146, "REVERB / EXTRA" });
     const std::pair<int, const char*> extras[] = { { P_REV_MIX, "MIX" }, { P_REV_DECAY, "DECAY" }, { P_REV_TONE, "TONE" },
                                                    { P_REV_PREDELAY, "PRE" }, { P_DRIFT, "DRIFT" } };
     for (int i = 0; i < 5; ++i) {
         L.controls.push_back({ CtlType::Paddle, extras[i].first, 404 + i * 33, bt + 30, 22, 106, extras[i].second,
                                i == 4 ? kCapWhite : kCapBlue, 0, nullptr });
     }
-    L.controls.push_back({ CtlType::Ribbon, P_RIBBON, 584, bt + 6, 752, 20, "RIBBON", 0, 0, nullptr });
-    L.controls.push_back({ CtlType::Keyboard, -1, 584, bt + 32, 752, 118, "", 0, 0, nullptr });
+    // Long envelope mode [A] (spec 02 §5/§6).
+    L.controls.push_back({ CtlType::Rocker, P_ENV_LONG, 574, bt + 52, 20, 40, "LONG", kCapWhite, 0, nullptr });
+    L.controls.push_back({ CtlType::Ribbon, P_RIBBON, 620, bt + 6, 716, 20, "RIBBON", 0, 0, nullptr });
+    L.controls.push_back({ CtlType::Keyboard, -1, 620, bt + 32, 716, 118, "", 0, 0, nullptr });
     return L;
 }
 

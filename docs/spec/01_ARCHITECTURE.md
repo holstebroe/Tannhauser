@@ -77,3 +77,4 @@ Plugin targets: `tannhauser.clap` (instrument). Test executables: `tannhauser_ds
 | Per-card drift and calibration error | Drift amount control (0 = perfect calibration) |
 | 22 factory tones as fixed sets | Unlimited software presets with a category menu |
 | Paddles not stored in tones | Software presets store global/performance sections too |
+| Envelope times to ~0.6–11.5 s | Long envelope mode: attack/decay/release to 10/25/40 s |

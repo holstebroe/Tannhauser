@@ -260,6 +260,7 @@ void SynthEngine::updateControls(int hostSamples) {
     const double* p = smooth_.data();
     const double globalRes = p[P_RESONANCE];
     const double mix = p[P_MIX];
+    const bool longEnv = params_[P_ENV_LONG] >= 0.5;   // Long envelope mode [A]
     for (int l = 0; l < 2; ++l) {
         const uint32_t b = l == 0 ? kLine1Base : kLine2Base;
         LineControls& c = lc_[l];
@@ -275,15 +276,15 @@ void SynthEngine::updateControls(int hostSamples) {
         c.vqL = clampd(10.0 * (1.0 - p[b + LP_RES_L]) - 10.0 * globalRes, 0.0, 10.0);
         c.il = p[b + LP_IL];
         c.al = p[b + LP_AL];
-        c.fegA = attackTimeSec(p[b + LP_FEG_A]);
-        c.fegD = decayTimeSec(p[b + LP_FEG_D]);
-        c.fegR = decayTimeSec(p[b + LP_FEG_R]);
+        c.fegA = timeSec(TimeLaw::VcfAttack, p[b + LP_FEG_A], longEnv);
+        c.fegD = timeSec(TimeLaw::VcfDecay, p[b + LP_FEG_D], longEnv);
+        c.fegR = timeSec(TimeLaw::VcfRelease, p[b + LP_FEG_R], longEnv);
         c.vcfLevel = p[b + LP_VCF_LEVEL];
         c.sine = p[b + LP_SINE];
-        c.vegA = attackTimeSec(p[b + LP_VEG_A]);
-        c.vegD = decayTimeSec(p[b + LP_VEG_D]);
+        c.vegA = timeSec(TimeLaw::VcaAttack, p[b + LP_VEG_A], longEnv);
+        c.vegD = timeSec(TimeLaw::VcaDecay, p[b + LP_VEG_D], longEnv);
         c.vegS = p[b + LP_VEG_S];
-        c.vegR = decayTimeSec(p[b + LP_VEG_R]);
+        c.vegR = timeSec(TimeLaw::VcaRelease, p[b + LP_VEG_R], longEnv);
         c.level = p[b + LP_LEVEL];
         c.initBrill = p[b + LP_INIT_BRILL];
         c.initLevel = p[b + LP_INIT_LEVEL];
@@ -291,7 +292,7 @@ void SynthEngine::updateControls(int hostSamples) {
         c.afterLevel = p[b + LP_AFTER_LEVEL];
         c.mixGain = l == 0 ? std::min(1.0, 2.0 * (1.0 - mix)) : std::min(1.0, 2.0 * mix);
         // PWM LFO, one per line (spec 03 §4).
-        const double pwmHz = 0.1 * std::pow(250.0, p[b + LP_PWM_SPEED]);
+        const double pwmHz = pwmRateHz(p[b + LP_PWM_SPEED]);
         pwmPhase_[l] = wrap01(pwmPhase_[l] + pwmHz * blockSec);
         c.pwmLfo = std::sin(kTwoPi * pwmPhase_[l]);
     }
@@ -315,7 +316,7 @@ void SynthEngine::updateControls(int hostSamples) {
             const double envK = 1.0 + s.cal.envScale * drift;
             double relV = c.vegR * envK, relF = c.fegR * envK;
             if (params_[P_SUS_PEDAL] >= 0.5) {
-                const double ts = decayTimeSec(p[P_SUS_TIME]);
+                const double ts = timeSec(TimeLaw::Sustain, p[P_SUS_TIME]);
                 relV += ts; relF += ts;
             }
             if (v.fastRelease) relV = relF = 0.005;
@@ -469,14 +470,14 @@ void SynthEngine::process(float* outL, float* outR, int n) {
         // Sub-oscillator rate with touch speed from the highest pressure (single SP line).
         double pmax = 0.0;
         for (const auto& v : voices_) if (v.gate) pmax = std::max(pmax, v.pressure);
-        const double subHz = 0.1 * std::pow(2000.0, clampd(p[P_SUB_SPEED] + 0.4 * p[P_TOUCH_SPEED] * pmax, 0.0, 1.0));
+        const double subHz = subRateHz(clampd(p[P_SUB_SPEED] + 0.4 * p[P_TOUCH_SPEED] * pmax, 0.0, 1.0));
         const int subFunc = static_cast<int>(params_[P_SUB_FUNC]);
         const double subSmoothC = 1.0 - std::exp(-1.0 / (0.0005 * fsOs_));
         const double subNoiseC = 1.0 - std::exp(-kTwoPi * subHz / fsOs_);
 
         // Ring modulator (spec 03 §9).
-        const double rmA = attackCoeff(attackTimeSec(p[P_RM_ATTACK]), fsOs_);
-        const double rmD = decayCoeff(decayTimeSec(p[P_RM_DECAY]), fsOs_);
+        const double rmA = attackCoeff(timeSec(TimeLaw::RmAttack, p[P_RM_ATTACK]), fsOs_);
+        const double rmD = decayCoeff(timeSec(TimeLaw::RmDecay, p[P_RM_DECAY]), fsOs_);
         const double rmMod = p[P_RM_MOD];
 
         // Patch gain [A]: the per-preset loudness trim (spec 03 §13).
@@ -521,7 +522,7 @@ void SynthEngine::process(float* outL, float* outR, int n) {
                 } else {
                     rmEnv_ += (0.0 - rmEnv_) * rmD;
                 }
-                const double rmHz = 200.0 * clampd(p[P_RM_SPEED] + p[P_RM_DEPTH] * rmEnv_, 0.0, 2.0);
+                const double rmHz = rmRateHz(clampd(p[P_RM_SPEED] + p[P_RM_DEPTH] * rmEnv_, 0.0, 2.0));
                 rmPhase_ += rmHz / fsOs_;
                 if (rmPhase_ >= 1.0) rmPhase_ -= 1.0;
                 if (rmMod > 1e-5) {

@@ -59,6 +59,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 1.9 | 2× oversampling, half-band decimation of the mono bus | ✅ |
 | 1.10 | 4× mode for audio-rate sub-osc / ring mod settings | ⬜ |
 | 1.11 | VCO option C (physical relaxation core) if scope data shows curved reset | 🔬 |
+| 1.13 | Long envelope mode [A] (`env.long`, stored): filter/VCA envelope times to 10 s / 25 s / 40 s; LONG switch in REVERB / EXTRA; preset `PD Long Blade Swell` | ✅ |
 | 1.12 | CPU: 16 lines at 2× cost ~0.15 real-time factor on one core (T15). Candidates: SIMD across the 8 voices of a line, control-rate (every 4th sample) filter coefficients, skip silent lines (level 0 or mix gain 0) | ⬜ |
 
 ### WP2 — Global, performance and bus (spec 03)
@@ -122,11 +123,11 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 ### WP7 — Open hardware questions (from CS-80 compendium §10.1)
 | ID | Question | Current default (where) | Status |
 | --- | --- | --- | --- |
-| P-1 | **Time-row polarity of the factory matrices.** Doc §14.5 infers "higher V = shorter time" from plucked tones (A/R rows at 10 V). This fails for String 1 (VCA A 8.2 V → 3.5 ms attack) and Brass (R 10 V → 10 ms). The opposite polarity fails worse (Harpsichord release 10 s). Evidence for "higher V = longer": SUB-board sustain diodes OR a *higher* voltage onto RF/RA when the pedal lengthens release. Resolve with a recording of factory String 1/Harpsichord 1, or the TWS/SUB scaling. **Tested 2026-10-09** (`tools/analyze_factory_polarity.py`, spec 05 §3): inverted 62/74 plausible, direct 33/74, no row prefers direct; misfits = String tones (staccato, plausible for the factory vamp strings) and 10 ms Brass/E.Piano release. Kept inverted; a recording would still settle the strings. | inverted (02 §9) | 🟡 tested by plausibility, not by recording |
-| P-2 | Slider → time law and curve shapes | exponential, RC curves (02 §5) | 🔬 |
-| P-3 | HPF/LPF cutoff law at the slider and tracking | linear Vf, 100 % KV tracking (02 §4) | 🔬 |
+| P-1 | **Time-row polarity of the factory matrices.** Doc §14.5 infers "higher V = shorter time" from plucked tones (A/R rows at 10 V). This fails for String 1 (VCA A 8.2 V → 3.5 ms attack) and Brass (R 10 V → 10 ms). The opposite polarity fails worse (Harpsichord release 10 s). Evidence for "higher V = longer": SUB-board sustain diodes OR a *higher* voltage onto RF/RA when the pedal lengthens release. Resolve with a recording of factory String 1/Harpsichord 1, or the TWS/SUB scaling. **Tested 2026-10-09** (`tools/analyze_factory_polarity.py`, spec 05 §3): inverted 62/74 plausible, direct 33/74, no row prefers direct; misfits = String tones (staccato, plausible for the factory vamp strings) and 10 ms Brass/E.Piano release. Kept inverted; a recording would still settle the strings. Re-run with the Arturia time ranges: 58/74 vs 28/74, same verdict. | inverted (02 §9) | 🟡 tested by plausibility, not by recording |
+| P-2 | Slider → time law and curve shapes. Ranges now from the Arturia CS-80 V manual (A 2–580/885 ms, D to 8.75/7.35 s, R to 11/11.5 s); the curve between the end points is still assumed | exponential, RC curves (02 §5) | 🟡 ranges sourced, curve 🔬 |
+| P-3 | HPF/LPF cutoff law at the slider and tracking. Arturia's manual gives HPF 26.8 Hz–16.2 kHz and LPF 37.1 Hz–22.3 kHz (~600:1, exponential, key unstated). Not adopted: it conflicts with the IG00156 linear-Vf data; settle with a hardware sweep at a known key | linear Vf, 100 % KV tracking (02 §4) | 🔬 |
 | P-4 | HPF:LPF modulation (resistor weights 0.32–0.47 vs Cherry's "half the octaves") | HPF slider ×0.47, modulation = half the LPF octaves (02 §4) | 🔬 |
-| P-5 | Sub-osc, PWM LFO, ring-mod, chorus rates | 03 §3/4/9/11 | 🔬 |
+| P-5 | Sub-osc, PWM LFO, ring-mod, chorus rates. Sub-osc 0.5–100 Hz, PWM 0.1–127 Hz, ring mod 0.25–205 Hz and its AD 3–530 ms / 7 ms–4.5 s now from the Arturia manual; chorus still default | 03 §3/4/9/11 | 🟡 chorus 🔬 |
 | P-6 | Saw start pulse shape per card | 2 %, +0.2, ±30 % | 🔬 |
 | P-7 | Ribbon range, scoop depth/speed, detune range | ±1 oct, 2 st/60 ms, 12 Hz | 🔬 |
 | P-8 | Velocity extraction from one FSR signal | MIDI velocity | 🔬 |
@@ -152,6 +153,8 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2026-10-09 | Software presets store global sections too (hardware paddles are not stored) |
 | 2026-10-09 | Factory time polarity follows compendium §14.6 (inverted) until P-1 is resolved |
 | 2026-10-09 | P-1 plausibility test confirms the inverted polarity (62/74 vs 33/74); kept |
+| 2026-10-09 | Time and rate ranges taken from the Arturia CS-80 V manual (§5.2, documented against the hardware): envelopes, sub-osc, PWM LFO, ring mod; global Resonance bipolar. Library presets and defaults remapped to keep their voiced times; factory tones follow the new laws. Arturia's filter cutoff ranges not adopted (P-3) |
+| 2026-10-09 | Long envelope mode added as a stored per-patch switch [A] (global setting in Arturia's emulation) |
 | 2026-10-09 | Loudness: presets are trimmed by an added, stored Patch Gain (not by editing decoded line levels) to −18 LUFS max-momentary |
 
 ## Progress log
@@ -168,5 +171,11 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 - 2026-10-09 — P-1 tested (`tools/analyze_factory_polarity.py`): inverted polarity kept. Added
   Patch Gain (param 95) and loudness normalisation of all 102 presets to −18 LUFS (±0.15 LU),
   `tannhauser_loudness`, test T16; dsp test 249 checks.
+- 2026-10-09 — Arturia CS-80 V manual ranges: envelope times (02 §5/§6), sub-osc/PWM/ring-mod
+  rates and ring-mod AD (03), bipolar global Resonance; rates are shown in Hz. Long envelope
+  mode `env.long` (param 96) [A] with a LONG rocker and `PD Long Blade Swell`. Library presets
+  remapped by law (gains moved < 0.5 dB); factory tones re-fitted (+1…3 dB on the short
+  plucks/organs, now 2 ms minimum times). P-1 re-run: inverted still preferred. dsp test 257
+  checks, gui test 274.
 - Next suggested steps: P-1 confirmation with a reference recording; 1.5 nonlinear SVF;
   1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

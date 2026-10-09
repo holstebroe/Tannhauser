@@ -148,6 +148,7 @@ static void testFilterEnvelope() {
     ParamValues v = defaultValues();
     v[lineParam(0, LP_AL)] = 1.0;
     v[lineParam(0, LP_HPF)] = 0.2;
+    v[lineParam(0, LP_FEG_D)] = 1.0;   // hold the peak while measuring
     setAll(e, v);
     e.noteOn(60, 0.0);
     std::vector<float> l(64), r(64);
@@ -158,37 +159,48 @@ static void testFilterEnvelope() {
 }
 
 static void testEnvelopeTimes() {
-    // T7: attack slider 0 -> ~1 ms, 1 -> ~1 s (time to reach the peak).
+    // T7: attack time to the peak and release time to 10 % follow the classic
+    // (2 ms .. 885 ms, 2 ms .. 11.5 s) and Long [A] (to 10 s / 40 s) ranges.
     const int sr = 48000;
-    for (double pos : { 0.0, 0.5, 1.0 }) {
-        SynthEngine e;
-        e.setSampleRate(sr);
-        ParamValues v = sinePatch();
-        v[lineParam(0, LP_VEG_A)] = pos;
-        setAll(e, v);
-        e.noteOn(60, 1.0);
-        std::vector<float> l(1), r(1);
-        int n = 0;
-        while (e.voice(0).line[0].veg.stage() == AmpEnvelope::Attack && n < 3 * sr) { e.process(l.data(), r.data(), 1); ++n; }
-        const double t = double(n) / sr, want = attackTimeSec(pos);
-        CHECK(std::fabs(t / want - 1.0) < 0.15 || std::fabs(t - want) < 0.0006, "T7 attack pos %.1f: %.4f s want %.4f", pos, t, want);
+    for (int longEnv = 0; longEnv < 2; ++longEnv) {
+        for (double pos : { 0.0, 0.5, 1.0 }) {
+            if (longEnv && pos == 0.0) continue;
+            SynthEngine e;
+            e.setSampleRate(sr);
+            ParamValues v = sinePatch();
+            v[lineParam(0, LP_VEG_A)] = pos;
+            v[P_ENV_LONG] = longEnv;
+            setAll(e, v);
+            e.noteOn(60, 1.0);
+            std::vector<float> l(1), r(1);
+            int n = 0;
+            while (e.voice(0).line[0].veg.stage() == AmpEnvelope::Attack && n < 12 * sr) { e.process(l.data(), r.data(), 1); ++n; }
+            const double t = double(n) / sr, want = timeSec(TimeLaw::VcaAttack, pos, longEnv);
+            CHECK(std::fabs(t / want - 1.0) < 0.15 || std::fabs(t - want) < 0.0006, "T7 attack pos %.1f long %d: %.4f s want %.4f",
+                  pos, longEnv, t, want);
+        }
+        for (double pos : { 0.0, 0.5 }) {
+            SynthEngine e;
+            e.setSampleRate(sr);
+            ParamValues v = sinePatch();
+            v[lineParam(0, LP_VEG_R)] = pos;
+            v[P_ENV_LONG] = longEnv;
+            setAll(e, v);
+            e.noteOn(60, 1.0);
+            std::vector<float> l(256), r(256);
+            for (int i = 0; i < 40; ++i) e.process(l.data(), r.data(), 256);
+            e.noteOff(60);
+            int n = 0;
+            while (e.voice(0).line[0].veg.value() > 0.1 && n < 20 * sr) { e.process(l.data(), r.data(), 1); ++n; }
+            const double t = double(n) / sr, want = timeSec(TimeLaw::VcaRelease, pos, longEnv);
+            CHECK(std::fabs(t / want - 1.0) < 0.15 || std::fabs(t - want) < 0.0006, "T7 release pos %.1f long %d: %.4f s want %.4f",
+                  pos, longEnv, t, want);
+        }
     }
-    // Release: time to fall to 10 %.
-    for (double pos : { 0.0, 0.5 }) {
-        SynthEngine e;
-        e.setSampleRate(sr);
-        ParamValues v = sinePatch();
-        v[lineParam(0, LP_VEG_R)] = pos;
-        setAll(e, v);
-        e.noteOn(60, 1.0);
-        std::vector<float> l(256), r(256);
-        for (int i = 0; i < 40; ++i) e.process(l.data(), r.data(), 256);
-        e.noteOff(60);
-        int n = 0;
-        while (e.voice(0).line[0].veg.value() > 0.1 && n < 20 * sr) { e.process(l.data(), r.data(), 1); ++n; }
-        const double t = double(n) / sr, want = decayTimeSec(pos);
-        CHECK(std::fabs(t / want - 1.0) < 0.15, "T7 release pos %.1f: %.4f s want %.4f", pos, t, want);
-    }
+    // The documented range end points (Arturia CS-80 V manual §5.2).
+    CHECK(std::fabs(timeSec(TimeLaw::VcfAttack, 1.0) - 0.580) < 1e-9 && std::fabs(timeSec(TimeLaw::VcaRelease, 1.0, true) - 40.0) < 1e-9,
+          "T7 time range end points");
+    CHECK(std::fabs(timePos(TimeLaw::VcfDecay, timeSec(TimeLaw::VcfDecay, 0.37)) - 0.37) < 1e-9, "T7 time law inverse");
 }
 
 static void testTouchPerVoice() {
