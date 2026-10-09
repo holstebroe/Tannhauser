@@ -31,7 +31,7 @@ key → KAS key voltage (Hz/V) → glide/gliss → + detune(II) + drift(Hz) → 
       └─ sine (waveshaper) ─────────────────────────────────────────────► ×Sine level
                                                       sum ─► × VEG(ADSR) × dynamics
                                                             × level × kbd level × sub VCA
- Σ 8 voices × (line I·(1−mix) + line II·mix) ─► mono bus (2× oversampled)
+ Σ 8 voices × (line I·(1−mix) + line II·mix) ─► mono bus (2×, or 4× with os.4x)
    ─► ring modulator (own oscillator + AD env, monophonic) ─► decimate to host rate
    ─► expression ─► chorus / tremolo (stereo) ─► [A] reverb ─► volume ─► L, R
 ```
@@ -40,9 +40,10 @@ key → KAS key voltage (Hz/V) → glide/gliss → + detune(II) + drift(Hz) → 
 
 | Block | Rate | Notes |
 | --- | --- | --- |
-| Voice audio (VCO, waveshaper, SVFs, VCA), mono bus, ring mod | 2× host rate | [D] §9: 2× default; 4× is open issue for audio-rate sub-osc |
-| Decimation | 2:1 half-band FIR on the mono bus only | All voices are summed first, so only one decimator |
+| Voice audio (VCO, waveshaper, SVFs, VCA), mono bus, ring mod | 2× host rate; 4× with the `os.4x` switch [A] | [D] §9. The oscillators need no more than 2× (4-point BLEP, ≤ −80 dB aliasing); 4× helps the nonlinear parts: a hard-driven resonant filter (~6 dB less aliasing), audio-rate sub-osc and ring mod. Twice the CPU |
+| Decimation | 2:1 half-band FIR on the mono bus (a second 4→2 stage in 4× mode) | All voices are summed first, so only one decimator chain |
 | Filter envelope | every oversampled sample | IL/AL attacks can be 1 ms [S §9] |
+| Filter cutoff/Q coefficients, line gain | every host sample | per-sample OTA gains inside the filter |
 | VCA envelope, LFOs, glide, touch smoothing | every oversampled sample (cheap) | [D] simpler than a control-rate split; optimise later |
 | Chorus/tremolo, reverb | host rate | |
 
@@ -77,4 +78,5 @@ Plugin targets: `tannhauser.clap` (instrument). Test executables: `tannhauser_ds
 | Per-card drift and calibration error | Drift amount control (0 = perfect calibration) |
 | 22 factory tones as fixed sets | Unlimited software presets with a category menu |
 | Paddles not stored in tones | Software presets store global/performance sections too |
+| 2× oversampled voices | 4× oversampling switch (not stored) |
 | Envelope times to ~0.6–11.5 s | Long envelope mode: attack/decay/release to 10/25/40 s |

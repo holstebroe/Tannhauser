@@ -18,6 +18,9 @@ build specification in `docs/spec/`:
 - **HPF → LPF** 12 dB state-variable pair (IG00156) with key-tracked linear cutoff law,
   frequency-dependent damping that never self-oscillates, and the HPF following the LPF at
   half the octaves ("always bandpass").
+- **Analog modelling**: HPF→LPF with saturating OTA integrators (resonance compresses and
+  adds harmonics when driven), per-card VCO calibration, slow drift and cycle-to-cycle jitter,
+  4-point band-limited oscillators (aliasing ≤ −80 dB at 2× oversampling), optional 4×.
 - **IL/AL filter envelope** centred on the cutoff slider (IG00152) and the VCA ADSR (IG00159)
   with the hardware's time ranges, plus an added **Long** mode (attack to 10 s, release to
   40 s) for slow-swelling Blade Runner pads.

@@ -92,6 +92,7 @@ enum GlobalParam : uint32_t {
     P_REV_PREDELAY,
     P_GAIN,           // per-preset loudness trim [A], appended 2026-10-09
     P_ENV_LONG,       // Long envelope mode [A], appended 2026-10-09
+    P_OVERSAMPLE,     // 4x oversampling [A] (plan 1.10), appended 2026-10-09
     PARAM_COUNT
 };
 

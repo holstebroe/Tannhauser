@@ -49,18 +49,20 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | ID | Issue | Status |
 | --- | --- | --- |
 | 1.1 | Hz/V pitch law, footage, Hz-domain offsets, detune in KV path | ✅ |
-| 1.2 | PolyBLEP saw + start pulse, pulse with PW/PWM, impure sine, phase-locked | ✅ |
+| 1.2 | Band-limited saw + start pulse, pulse with PW/PWM, impure sine, phase-locked (4-point B-spline BLEP since 1.15) | ✅ |
 | 1.3 | Shared noise source into the filters | ✅ |
 | 1.4 | TPT SVF HPF→LPF, linear Vf law with key tracking, Q(fc) damping, 7.6 kHz pole | ✅ |
-| 1.5 | Nonlinear integrators (option B, Newton/tanh in the SVF loop) | ⬜ |
+| 1.5 | Nonlinear integrators (option B): OTA SVF with tanh integrators, linearised predict/correct solve (02 §4), T18. V = 2.0 is a default; tune against a recording | ✅ |
 | 1.6 | IL/AL filter EG and ADSR with RC curves and stated time ranges | ✅ |
 | 1.7 | VCA with dynamics (init/after level), sine path, VCF level | ✅ |
 | 1.8 | Per-card calibration records + OU drift (Drift control) | ✅ |
 | 1.9 | 2× oversampling, half-band decimation of the mono bus | ✅ |
-| 1.10 | 4× mode for audio-rate sub-osc / ring mod settings | ⬜ |
-| 1.11 | VCO option C (physical relaxation core) if scope data shows curved reset | 🔬 |
+| 1.10 | 4× oversampling switch `os.4x` (param 97, not stored, no panel control): 4→2→1 half-band chain, noise density kept constant, T20. Not needed for the oscillators; ~6 dB less aliasing for a hard-driven resonant filter | ✅ |
+| 1.11 | VCO option C (physical relaxation core) if scope data shows curved reset. Not done: Arturia's curved-saw plot is from an unnamed instrument, not the CS-80; needs a CS-80 scope capture | 🔬 |
 | 1.13 | Long envelope mode [A] (`env.long`, stored): filter/VCA envelope times to 10 s / 25 s / 40 s; LONG switch in REVERB / EXTRA; preset `PD Long Blade Swell` | ✅ |
-| 1.12 | CPU: 16 lines at 2× cost ~0.15 real-time factor on one core (T15). Candidates: SIMD across the 8 voices of a line, control-rate (every 4th sample) filter coefficients, skip silent lines (level 0 or mix gain 0) | ⬜ |
+| 1.12 | CPU (T15). Done: filter cutoff/Q/line gain once per host sample, silent lines (Level or Mix 0) skipped, one shared division for both OTA gains (−17 % instructions). The nonlinear filter costs more, so the net is 0.093 → ~0.13 real-time factor at 2× (~0.26 at 4×). Left: SIMD across the 8 voices of a line (SoA rewrite of the voice loop) | 🟡 |
+| 1.14 | VCO cycle-to-cycle jitter per card, scaled by Drift (02 §8), T19 | ✅ |
+| 1.15 | 4-point B-spline BLEP for saw, start pulse and pulse (02 §2): worst alias −50…−55 dB → ≤ −80 dB at 2×, T17 | ✅ |
 
 ### WP2 — Global, performance and bus (spec 03)
 | ID | Issue | Status |
@@ -115,7 +117,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 ### WP6 — Validation (spec 07)
 | ID | Issue | Status |
 | --- | --- | --- |
-| 6.1 | `tannhauser_dsp_test` T1–T13, T15 (T14 is in the GUI test) | 🟡 T4 checks only "no self-oscillation", not the peak-gain-vs-cutoff curve; T13 checks RMS, not f0 |
+| 6.1 | `tannhauser_dsp_test` T1–T13, T15–T20 (T14 is in the GUI test) | 🟡 T4 checks only "no self-oscillation", not the peak-gain-vs-cutoff curve; T13 checks RMS, not f0 |
 | 6.2 | `tannhauser_gui_test` offscreen render + interaction | ✅ |
 | 6.3 | `tannhauser_render` offline WAV renderer | ✅ |
 | 6.4 | Reference-audio calibration loop (Acidus-style fit tools) | 🔬 |
@@ -154,6 +156,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2026-10-09 | Factory time polarity follows compendium §14.6 (inverted) until P-1 is resolved |
 | 2026-10-09 | P-1 plausibility test confirms the inverted polarity (62/74 vs 33/74); kept |
 | 2026-10-09 | Time and rate ranges taken from the Arturia CS-80 V manual (§5.2, documented against the hardware): envelopes, sub-osc, PWM LFO, ring mod; global Resonance bipolar. Library presets and defaults remapped to keep their voiced times; factory tones follow the new laws. Arturia's filter cutoff ranges not adopted (P-3) |
+| 2026-10-09 | WP1 analog-modelling pass (prompted by Arturia's TAE claims): nonlinear OTA filter, cycle jitter, 4-point BLEP, optional 4×. Presets are not compensated for model changes, only loudness-refitted (user's call) |
 | 2026-10-09 | Long envelope mode added as a stored per-patch switch [A] (global setting in Arturia's emulation) |
 | 2026-10-09 | Loudness: presets are trimmed by an added, stored Patch Gain (not by editing decoded line levels) to −18 LUFS max-momentary |
 
@@ -177,5 +180,9 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
   remapped by law (gains moved < 0.5 dB); factory tones re-fitted (+1…3 dB on the short
   plucks/organs, now 2 ms minimum times). P-1 re-run: inverted still preferred. dsp test 257
   checks, gui test 274.
+- 2026-10-09 — WP1: OTA SVF with saturating integrators (1.5), VCO cycle jitter (1.14),
+  4-point B-spline BLEP (1.15; aliasing ≤ −80 dB at 2×), 4× switch `os.4x` (1.10, param 97),
+  CPU work (1.12 partial: −17 % instructions, real-time factor ~0.13). Tests T17–T20; presets
+  loudness-refitted (median −1.3 dB). 1.11 left for scope data. dsp test 267 checks.
 - Next suggested steps: P-1 confirmation with a reference recording; 1.5 nonlinear SVF;
   1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

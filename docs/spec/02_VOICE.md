@@ -25,11 +25,20 @@ says *V* it means `10 × position` unless a row is inverted (see §8).
 
 ## 2. VCO and waveshaper [S §6.1, §13 IG00153/IG00158; option A of §9.2]
 
-- Phase accumulator `φ ∈ [0,1)`, increment `f/fs_os`. Saw = `2φ − 1` with PolyBLEP at reset.
+- Phase accumulator `φ ∈ [0,1)`, increment `f/fs_os`. Saw = `2φ − 1`.
+- **Band limiting**: saw and pulse are rendered naive into a 2-sample delay line and every
+  jump (saw reset, start-pulse edges, pulse edges) gets a **4-point BLEP**: the step smoothed
+  by a cubic B-spline (support ±2 samples) minus the ideal step, added to the four samples
+  around the jump at its exact fractional time. Worst alias image at 2× ≤ −80 dB re the
+  fundamental for a G7 saw/pulse with the filter open (test T17; the 2-point PolyBLEP used
+  before 2026-10-09 gave −50…−55 dB). Cost: the B-spline's passband droop, −0.6 dB at 10 kHz
+  and −2.5 dB at 20 kHz (at 96 kHz), well under the 7.6 kHz pole that follows the LPF. The sine
+  uses the phase two samples back so it stays aligned. [D method]
 - **Saw start pulse**: a short pulse added at each reset, width `w = 2 %` of the period
-  (min 1.5 samples), height `+0.2`, both randomised ±30 % per card [D §14.6]. Rendered as a
-  band-limited rectangular pulse (PolyBLEP on both edges).
-- **Pulse** = comparator of the saw against the PW threshold, PolyBLEP on both edges.
+  (min 2.5 samples), height `+0.2`, both randomised ±30 % per card [D §14.6], both edges
+  band-limited as above.
+- **Pulse** = comparator of the saw against the PW threshold: goes high at the reset, low when
+  the phase passes PW (a PW change cannot retrigger it within the cycle).
   Width `PW = 0.5 + 0.4 × pw` (50 %…90 %) [S], plus PWM: `+ 0.4 × pwmDepth × lfo` (sine LFO
   per line, see doc 03 §4), clamped to [0.5, 0.95] (the waveshaper cannot go below square).
 - **Sine** from the triangle derived from the same phase, shaped
@@ -46,9 +55,24 @@ line: `noise × 0.7` into the HPF input, with a ~1 ms smoothing on the level con
 
 ## 4. Filters: HPF → LPF (IG00156 ×2) [S topology §6.2, §13; option A of §9.2]
 
-Each filter is a 2-pole TPT state-variable filter (Zavalishin/Simper). HPF output feeds LPF.
-A fixed one-pole low-pass at **7.6 kHz** follows the LPF (the extra real pole ωi of §6.2).
-The input is softly saturated `x → 1.2·tanh(x/1.2)` (OTA input stage, mild) [D, option B later].
+Each filter is a 2-pole state-variable filter with **saturating OTA integrators** (option B of
+§9.2; plan 1.5). HPF output feeds LPF. A fixed one-pole low-pass at **7.6 kHz** follows the
+LPF (the extra real pole ωi of §6.2).
+
+```
+u1 = x − k·bp − lp          bp' = ω·T(u1)          lp' = ω·T(bp)          hp = u1
+T(v) = V·tanh(v/V),  V = 2.0 (signal units; the oscillators are ±1) [D]
+```
+
+Trapezoidal (TPT) discretisation. Each sample the OTA gains `tanh(v/V)/(v/V)` are linearised
+at an estimate of v and the linear TPT system is solved exactly, twice: predicted with the
+gains carried from the previous sample, corrected with the gains at the predicted voltages
+(a cheap stand-in for a Newton solve; stable since the gains are ≤ 1). Small signals give the
+linear SVF exactly; at high levels the resonant peak compresses and odd harmonics appear.
+LPF, Q 5, sine at fc (V = 2.0): amplitude 0.001 → +14.0 dB, 0.3 → +11.2 dB (H3 −45 dBc),
+1 → +4.0 dB (H3 −39 dBc), 2 → −1.1 dB (test T18 checks the same law at V = 1.2). V is a default: 1.2 made hard-driven resonant
+patches alias at −51 dB at 2×; 2.0 gives −60 dB and keeps normal levels near-linear. This
+replaces the input-only `1.2·tanh(x/1.2)` of the first version.
 
 **Cutoff law (linear in Vf, keyboard-tracked)** [S IC data p.42: KV 0.25 V & Vf 5 V → 1 kHz]:
 
@@ -157,6 +181,12 @@ Seeded per card (16 cards, seed exposed in code) and scaled by the global **Drif
 | Filter Q scale | ±5 % |
 | Envelope time scale | ±6 % |
 | VCA feedthrough | −70…−60 dB |
+| VCO cycle-to-cycle jitter | frequency × (1 + 5·10⁻⁴·j·g) per cycle, g Gaussian, j = card factor 0.7…1.3 [D] |
+
+Jitter: each VCO cycle runs at a fresh random frequency factor drawn at the reset (TAE-style
+period-to-period instability; plan 1.14). At the default Drift 0.35 the rms is ~0.3 cent.
+A line at Level 0 or Mix 0 is not rendered (its VCO phase still runs); its −60 dB VCA
+feedthrough is dropped with it.
 
 ## 9. Preset-row inversions (decoded factory data → slider position)
 

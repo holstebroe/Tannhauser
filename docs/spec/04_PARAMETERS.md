@@ -86,8 +86,9 @@ Flags: **S** = stored in software presets (patch); **P** = performance-only (not
 | 94 | rev.predelay | Reverb Pre-delay [A] | 0.2 | S | — |
 | 95 | gain | Patch Gain [A] | −24..+24 dB, 0 | S | — (per-preset loudness trim, spec 05 §4) |
 | 96 | env.long | Long Envelopes [A] | 0/1, 0 | S T | — (spec 02 §5: filter/VCA envelope times to 10/25/40 s) |
+| 97 | os.4x | 4x Oversampling [A] | 0/1, 0 | P T | — (spec 01 §3; host/automation only, no panel control) |
 
-Count: 97 (`PARAM_COUNT`).
+Count: 98 (`PARAM_COUNT`).
 
 Time and rate ranges follow the Arturia CS-80 V manual (spec 02/03). Defaults and library
 presets were remapped on 2026-10-09 so they keep the times they had under the earlier laws.

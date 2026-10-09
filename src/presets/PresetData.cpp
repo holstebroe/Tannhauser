@@ -6,7 +6,7 @@
 namespace tannhauser {
 
 static const PresetValue kP0[] = {
-    { "gain", 0.3 },
+    { "gain", -0.5 },
 };
 static const PresetValue kP1[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -37,7 +37,7 @@ static const PresetValue kP1[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 13.9 },
+    { "gain", 12.2 },
 };
 static const PresetValue kP2[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -68,7 +68,7 @@ static const PresetValue kP2[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 3.5 },
+    { "gain", 2.7 },
 };
 static const PresetValue kP3[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -99,7 +99,7 @@ static const PresetValue kP3[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 2.1 },
+    { "gain", 1.1 },
 };
 static const PresetValue kP4[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -130,7 +130,7 @@ static const PresetValue kP4[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 7.0 },
+    { "gain", 5.3 },
 };
 static const PresetValue kP5[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -161,7 +161,7 @@ static const PresetValue kP5[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 0.4 },
+    { "gain", -1.7 },
 };
 static const PresetValue kP6[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -192,7 +192,7 @@ static const PresetValue kP6[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 17.1 },
+    { "gain", 16.2 },
 };
 static const PresetValue kP7[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -223,7 +223,7 @@ static const PresetValue kP7[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 19.9 },
+    { "gain", 17.4 },
 };
 static const PresetValue kP8[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -254,7 +254,7 @@ static const PresetValue kP8[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 11.2 },
+    { "gain", 10.2 },
 };
 static const PresetValue kP9[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -285,7 +285,7 @@ static const PresetValue kP9[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 9.4 },
+    { "gain", 7.3 },
 };
 static const PresetValue kP10[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -316,7 +316,7 @@ static const PresetValue kP10[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 14.9 },
+    { "gain", 13.2 },
 };
 static const PresetValue kP11[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -347,7 +347,7 @@ static const PresetValue kP11[] = {
     { "l1.afterLevel", 1.0 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 0.2 },
+    { "gain", -1.1 },
 };
 static const PresetValue kP12[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -378,7 +378,7 @@ static const PresetValue kP12[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 14.4 },
+    { "gain", 12.6 },
 };
 static const PresetValue kP13[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -409,7 +409,7 @@ static const PresetValue kP13[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 11.7 },
+    { "gain", 10.0 },
 };
 static const PresetValue kP14[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -440,7 +440,7 @@ static const PresetValue kP14[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 2.0 },
+    { "gain", 1.0 },
 };
 static const PresetValue kP15[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -471,7 +471,7 @@ static const PresetValue kP15[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 6.8 },
+    { "gain", 5.2 },
 };
 static const PresetValue kP16[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -502,7 +502,7 @@ static const PresetValue kP16[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 0.5 },
+    { "gain", -1.7 },
 };
 static const PresetValue kP17[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -533,7 +533,7 @@ static const PresetValue kP17[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 17.4 },
+    { "gain", 16.4 },
 };
 static const PresetValue kP18[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -564,7 +564,7 @@ static const PresetValue kP18[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 19.8 },
+    { "gain", 17.3 },
 };
 static const PresetValue kP19[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -595,7 +595,7 @@ static const PresetValue kP19[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 7.7 },
+    { "gain", 6.2 },
 };
 static const PresetValue kP20[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -626,7 +626,7 @@ static const PresetValue kP20[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 6.0 },
+    { "gain", 4.4 },
 };
 static const PresetValue kP21[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -657,7 +657,7 @@ static const PresetValue kP21[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 15.4 },
+    { "gain", 13.8 },
 };
 static const PresetValue kP22[] = {
     { "l2.pwmSpeed", 0.0 },
@@ -688,7 +688,7 @@ static const PresetValue kP22[] = {
     { "l2.afterLevel", 1.0 },
     { "l1.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 3.1 },
+    { "gain", 2.3 },
 };
 static const PresetValue kP23[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -745,7 +745,7 @@ static const PresetValue kP23[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 10.7 },
+    { "gain", 9.0 },
 };
 static const PresetValue kP24[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -802,7 +802,7 @@ static const PresetValue kP24[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 2.5 },
+    { "gain", 1.5 },
 };
 static const PresetValue kP25[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -859,7 +859,7 @@ static const PresetValue kP25[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", -1.9 },
+    { "gain", -2.8 },
 };
 static const PresetValue kP26[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -916,7 +916,7 @@ static const PresetValue kP26[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 3.6 },
+    { "gain", 2.1 },
 };
 static const PresetValue kP27[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -973,7 +973,7 @@ static const PresetValue kP27[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", -3.0 },
+    { "gain", -5.1 },
 };
 static const PresetValue kP28[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -1030,7 +1030,7 @@ static const PresetValue kP28[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 13.3 },
+    { "gain", 12.2 },
 };
 static const PresetValue kP29[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -1087,7 +1087,7 @@ static const PresetValue kP29[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 16.7 },
+    { "gain", 14.2 },
 };
 static const PresetValue kP30[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -1144,7 +1144,7 @@ static const PresetValue kP30[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 4.9 },
+    { "gain", 3.6 },
 };
 static const PresetValue kP31[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -1201,7 +1201,7 @@ static const PresetValue kP31[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 4.0 },
+    { "gain", 2.4 },
 };
 static const PresetValue kP32[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -1258,7 +1258,7 @@ static const PresetValue kP32[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", 11.9 },
+    { "gain", 10.3 },
 };
 static const PresetValue kP33[] = {
     { "l1.pwmSpeed", 0.0 },
@@ -1315,7 +1315,7 @@ static const PresetValue kP33[] = {
     { "l2.afterLevel", 1.0 },
     { "detune", 0.2 },
     { "mix", 0.5 },
-    { "gain", -2.1 },
+    { "gain", -3.2 },
 };
 static const PresetValue kP34[] = {
     { "l1.saw", 1.0 },
@@ -1324,7 +1324,7 @@ static const PresetValue kP34[] = {
     { "l1.resL", 0.1 },
     { "l2.level", 0.0 },
     { "mix", 0.5 },
-    { "gain", 3.7 },
+    { "gain", 2.8 },
 };
 static const PresetValue kP35[] = {
     { "l1.saw", 1.0 },
@@ -1332,6 +1332,7 @@ static const PresetValue kP35[] = {
     { "l2.saw", 1.0 },
     { "l2.square", 0.0 },
     { "detune", 0.3 },
+    { "gain", -0.9 },
 };
 static const PresetValue kP36[] = {
     { "l1.saw", 1.0 },
@@ -1383,7 +1384,7 @@ static const PresetValue kP36[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", -0.7 },
+    { "gain", -1.7 },
 };
 static const PresetValue kP37[] = {
     { "l1.saw", 1.0 },
@@ -1434,7 +1435,7 @@ static const PresetValue kP37[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -0.8 },
+    { "gain", -2.0 },
 };
 static const PresetValue kP38[] = {
     { "l1.saw", 1.0 },
@@ -1483,7 +1484,7 @@ static const PresetValue kP38[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", -2.2 },
+    { "gain", -4.1 },
 };
 static const PresetValue kP39[] = {
     { "l1.saw", 1.0 },
@@ -1535,7 +1536,6 @@ static const PresetValue kP39[] = {
     { "chorus", 1.0 },
     { "fx.speed", 0.25 },
     { "fx.depth", 0.45 },
-    { "gain", 1.2 },
 };
 static const PresetValue kP40[] = {
     { "l1.saw", 1.0 },
@@ -1588,7 +1588,7 @@ static const PresetValue kP40[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", -0.2 },
+    { "gain", -0.4 },
 };
 static const PresetValue kP41[] = {
     { "l1.saw", 1.0 },
@@ -1639,7 +1639,7 @@ static const PresetValue kP41[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 0.4 },
+    { "gain", -0.8 },
 };
 static const PresetValue kP42[] = {
     { "l1.saw", 1.0 },
@@ -1692,7 +1692,7 @@ static const PresetValue kP42[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", -0.5 },
+    { "gain", -1.5 },
 };
 static const PresetValue kP43[] = {
     { "l1.saw", 1.0 },
@@ -1746,6 +1746,7 @@ static const PresetValue kP43[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
+    { "gain", -0.8 },
 };
 static const PresetValue kP44[] = {
     { "l1.saw", 1.0 },
@@ -1798,7 +1799,7 @@ static const PresetValue kP44[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 2.0 },
+    { "gain", 0.5 },
 };
 static const PresetValue kP45[] = {
     { "l1.saw", 1.0 },
@@ -1849,7 +1850,7 @@ static const PresetValue kP45[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 4.2 },
+    { "gain", 2.6 },
 };
 static const PresetValue kP46[] = {
     { "l1.saw", 1.0 },
@@ -1905,7 +1906,7 @@ static const PresetValue kP46[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 1.1 },
+    { "gain", -1.3 },
 };
 static const PresetValue kP47[] = {
     { "l1.saw", 1.0 },
@@ -1957,7 +1958,7 @@ static const PresetValue kP47[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 1.8 },
+    { "gain", 0.1 },
 };
 static const PresetValue kP48[] = {
     { "l1.saw", 1.0 },
@@ -2009,7 +2010,7 @@ static const PresetValue kP48[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 2.4 },
+    { "gain", 0.9 },
 };
 static const PresetValue kP49[] = {
     { "l1.saw", 1.0 },
@@ -2057,7 +2058,7 @@ static const PresetValue kP49[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 11.0 },
+    { "gain", 9.4 },
 };
 static const PresetValue kP50[] = {
     { "l1.saw", 1.0 },
@@ -2114,7 +2115,7 @@ static const PresetValue kP50[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -4.2 },
+    { "gain", -6.3 },
 };
 static const PresetValue kP51[] = {
     { "l1.saw", 1.0 },
@@ -2172,7 +2173,7 @@ static const PresetValue kP51[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -0.5 },
+    { "gain", -2.5 },
 };
 static const PresetValue kP52[] = {
     { "l1.saw", 0.0 },
@@ -2229,7 +2230,7 @@ static const PresetValue kP52[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -2.3 },
+    { "gain", -3.6 },
 };
 static const PresetValue kP53[] = {
     { "l1.saw", 1.0 },
@@ -2283,7 +2284,7 @@ static const PresetValue kP53[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -0.6 },
+    { "gain", -1.8 },
 };
 static const PresetValue kP54[] = {
     { "l1.saw", 0.0 },
@@ -2341,7 +2342,7 @@ static const PresetValue kP54[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -3.1 },
+    { "gain", -5.4 },
 };
 static const PresetValue kP55[] = {
     { "l1.saw", 1.0 },
@@ -2394,7 +2395,7 @@ static const PresetValue kP55[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -4.5 },
+    { "gain", -5.1 },
 };
 static const PresetValue kP56[] = {
     { "l1.saw", 1.0 },
@@ -2446,7 +2447,7 @@ static const PresetValue kP56[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -2.5 },
+    { "gain", -3.8 },
 };
 static const PresetValue kP57[] = {
     { "l1.saw", 1.0 },
@@ -2497,7 +2498,7 @@ static const PresetValue kP57[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", -0.8 },
+    { "gain", -2.1 },
 };
 static const PresetValue kP58[] = {
     { "l1.saw", 1.0 },
@@ -2548,7 +2549,7 @@ static const PresetValue kP58[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -2.7 },
+    { "gain", -4.1 },
 };
 static const PresetValue kP59[] = {
     { "l1.saw", 1.0 },
@@ -2602,7 +2603,7 @@ static const PresetValue kP59[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -2.6 },
+    { "gain", -3.7 },
 };
 static const PresetValue kP60[] = {
     { "l1.saw", 1.0 },
@@ -2653,7 +2654,7 @@ static const PresetValue kP60[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -3.8 },
+    { "gain", -5.1 },
 };
 static const PresetValue kP61[] = {
     { "l1.saw", 1.0 },
@@ -2704,7 +2705,7 @@ static const PresetValue kP61[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 0.4 },
+    { "gain", -0.8 },
 };
 static const PresetValue kP62[] = {
     { "l1.saw", 1.0 },
@@ -2755,7 +2756,7 @@ static const PresetValue kP62[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", -2.5 },
+    { "gain", -4.6 },
 };
 static const PresetValue kP63[] = {
     { "l1.saw", 1.0 },
@@ -2860,7 +2861,7 @@ static const PresetValue kP64[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", -0.2 },
+    { "gain", -1.4 },
 };
 static const PresetValue kP65[] = {
     { "l1.saw", 0.0 },
@@ -2892,7 +2893,7 @@ static const PresetValue kP65[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", -0.3 },
+    { "gain", -2.4 },
 };
 static const PresetValue kP66[] = {
     { "l1.saw", 1.0 },
@@ -2942,7 +2943,7 @@ static const PresetValue kP66[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 0.8 },
+    { "gain", -0.6 },
 };
 static const PresetValue kP67[] = {
     { "l1.saw", 0.0 },
@@ -2993,7 +2994,7 @@ static const PresetValue kP67[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", -0.9 },
+    { "gain", -2.9 },
 };
 static const PresetValue kP68[] = {
     { "l1.saw", 1.0 },
@@ -3041,7 +3042,7 @@ static const PresetValue kP68[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 0.2 },
+    { "gain", -0.9 },
 };
 static const PresetValue kP69[] = {
     { "l1.saw", 1.0 },
@@ -3086,7 +3087,7 @@ static const PresetValue kP69[] = {
     { "l2.level", 0.7 },
     { "l2.pw", 0.2 },
     { "detune", 0.15 },
-    { "gain", -1.5 },
+    { "gain", -2.9 },
 };
 static const PresetValue kP70[] = {
     { "l1.saw", 1.0 },
@@ -3137,7 +3138,7 @@ static const PresetValue kP70[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", -3.7 },
+    { "gain", -5.0 },
 };
 static const PresetValue kP71[] = {
     { "l1.saw", 1.0 },
@@ -3162,7 +3163,7 @@ static const PresetValue kP71[] = {
     { "l1.level", 0.9 },
     { "l2.level", 0.0 },
     { "porta.time", 0.15 },
-    { "gain", 3.3 },
+    { "gain", 2.3 },
 };
 static const PresetValue kP72[] = {
     { "l1.saw", 1.0 },
@@ -3207,7 +3208,7 @@ static const PresetValue kP72[] = {
     { "l2.afterBrill", 0.3 },
     { "l2.afterLevel", 0.2 },
     { "l2.level", 0.5 },
-    { "gain", 0.3 },
+    { "gain", -0.5 },
 };
 static const PresetValue kP73[] = {
     { "l1.saw", 0.0 },
@@ -3236,7 +3237,7 @@ static const PresetValue kP73[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 1.4 },
+    { "gain", -0.5 },
 };
 static const PresetValue kP74[] = {
     { "l1.saw", 1.0 },
@@ -3281,7 +3282,7 @@ static const PresetValue kP74[] = {
     { "l2.afterLevel", 0.2 },
     { "l2.level", 0.9 },
     { "detune", 0.2 },
-    { "gain", 1.1 },
+    { "gain", -0.2 },
 };
 static const PresetValue kP75[] = {
     { "l1.saw", 0.0 },
@@ -3335,7 +3336,7 @@ static const PresetValue kP75[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 2.6 },
+    { "gain", 0.5 },
 };
 static const PresetValue kP76[] = {
     { "l1.saw", 1.0 },
@@ -3363,7 +3364,7 @@ static const PresetValue kP76[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 9.7 },
+    { "gain", 8.2 },
 };
 static const PresetValue kP77[] = {
     { "l1.saw", 0.0 },
@@ -3412,7 +3413,7 @@ static const PresetValue kP77[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 7.7 },
+    { "gain", 5.0 },
 };
 static const PresetValue kP78[] = {
     { "l1.saw", 0.0 },
@@ -3440,7 +3441,7 @@ static const PresetValue kP78[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 6.2 },
+    { "gain", 4.0 },
 };
 static const PresetValue kP79[] = {
     { "l1.saw", 0.0 },
@@ -3542,7 +3543,7 @@ static const PresetValue kP80[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 3.2 },
+    { "gain", 2.2 },
 };
 static const PresetValue kP81[] = {
     { "l1.saw", 0.0 },
@@ -3587,7 +3588,7 @@ static const PresetValue kP81[] = {
     { "tremolo", 1.0 },
     { "fx.speed", 0.55 },
     { "fx.depth", 0.3 },
-    { "gain", -0.9 },
+    { "gain", -2.8 },
 };
 static const PresetValue kP82[] = {
     { "l1.saw", 1.0 },
@@ -3634,7 +3635,7 @@ static const PresetValue kP82[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -4.6 },
+    { "gain", -5.9 },
 };
 static const PresetValue kP83[] = {
     { "l1.saw", 0.0 },
@@ -3732,7 +3733,7 @@ static const PresetValue kP84[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", -1.4 },
+    { "gain", -3.2 },
 };
 static const PresetValue kP85[] = {
     { "l1.saw", 1.0 },
@@ -3782,7 +3783,7 @@ static const PresetValue kP85[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 2.9 },
+    { "gain", 1.1 },
 };
 static const PresetValue kP86[] = {
     { "l1.saw", 0.0 },
@@ -3830,7 +3831,7 @@ static const PresetValue kP86[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 9.3 },
+    { "gain", 9.0 },
 };
 static const PresetValue kP87[] = {
     { "l1.saw", 0.0 },
@@ -3858,7 +3859,7 @@ static const PresetValue kP87[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 8.1 },
+    { "gain", 5.1 },
 };
 static const PresetValue kP88[] = {
     { "l1.saw", 1.0 },
@@ -3907,7 +3908,7 @@ static const PresetValue kP88[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 2.4 },
+    { "gain", 1.4 },
 };
 static const PresetValue kP89[] = {
     { "l1.saw", 1.0 },
@@ -3957,7 +3958,7 @@ static const PresetValue kP89[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", 3.5 },
+    { "gain", 2.4 },
 };
 static const PresetValue kP90[] = {
     { "l1.saw", 0.0 },
@@ -4063,7 +4064,7 @@ static const PresetValue kP91[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 3.8 },
+    { "gain", 3.2 },
 };
 static const PresetValue kP92[] = {
     { "l1.saw", 0.0 },
@@ -4171,7 +4172,7 @@ static const PresetValue kP93[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 4.8 },
+    { "gain", 3.6 },
 };
 static const PresetValue kP94[] = {
     { "l1.saw", 1.0 },
@@ -4198,7 +4199,7 @@ static const PresetValue kP94[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 11.2 },
+    { "gain", 9.9 },
 };
 static const PresetValue kP95[] = {
     { "l1.saw", 0.0 },
@@ -4247,7 +4248,7 @@ static const PresetValue kP95[] = {
     { "chorus", 1.0 },
     { "fx.speed", 0.25 },
     { "fx.depth", 0.45 },
-    { "gain", 3.3 },
+    { "gain", 0.9 },
 };
 static const PresetValue kP96[] = {
     { "l1.saw", 1.0 },
@@ -4277,7 +4278,7 @@ static const PresetValue kP96[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 5.3 },
+    { "gain", 4.1 },
 };
 static const PresetValue kP97[] = {
     { "l1.saw", 0.0 },
@@ -4330,7 +4331,7 @@ static const PresetValue kP97[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", 1.0 },
+    { "gain", -0.1 },
 };
 static const PresetValue kP98[] = {
     { "l1.saw", 0.0 },
@@ -4362,7 +4363,7 @@ static const PresetValue kP98[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", 1.2 },
+    { "gain", -0.2 },
 };
 static const PresetValue kP99[] = {
     { "l1.saw", 1.0 },
@@ -4411,7 +4412,7 @@ static const PresetValue kP99[] = {
     { "rev.decay", 0.78 },
     { "rev.tone", 0.55 },
     { "rev.predelay", 0.3 },
-    { "gain", 0.3 },
+    { "gain", -0.6 },
 };
 static const PresetValue kP100[] = {
     { "l1.saw", 1.0 },
@@ -4443,7 +4444,7 @@ static const PresetValue kP100[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 5.3 },
+    { "gain", 4.0 },
 };
 static const PresetValue kP101[] = {
     { "l1.saw", 1.0 },
@@ -4473,7 +4474,7 @@ static const PresetValue kP101[] = {
     { "rev.decay", 0.5 },
     { "rev.tone", 0.6 },
     { "rev.predelay", 0.1 },
-    { "gain", 3.1 },
+    { "gain", 1.9 },
 };
 static const PresetValue kP102[] = {
     { "l1.saw", 1.0 },
@@ -4527,7 +4528,7 @@ static const PresetValue kP102[] = {
     { "rev.decay", 0.92 },
     { "rev.tone", 0.5 },
     { "rev.predelay", 0.45 },
-    { "gain", -0.8 },
+    { "gain", -2.1 },
 };
 
 const BuiltinPreset kBuiltinPresets[] = {
@@ -4566,15 +4567,15 @@ const BuiltinPreset kBuiltinPresets[] = {
     { "FC Funky 1+2", kP32, 55 },
     { "FC Funky 3+4", kP33, 55 },
     { "IN Single Line", kP34, 7 },
-    { "IN Two Lines Detuned", kP35, 5 },
+    { "IN Two Lines Detuned", kP35, 6 },
     { "BR Blade Runner Brass", kP36, 50 },
     { "BR End Titles Brass", kP37, 49 },
     { "BR Toto Stab", kP38, 47 },
-    { "BR Born In The USA", kP39, 50 },
+    { "BR Born In The USA", kP39, 49 },
     { "BR French Horn", kP40, 51 },
     { "BR Swell Brass", kP41, 49 },
     { "BR Brass Section", kP42, 51 },
-    { "BR Wonder Brass", kP43, 51 },
+    { "BR Wonder Brass", kP43, 52 },
     { "ST Vangelis Strings", kP44, 51 },
     { "ST Billie Jean Strings", kP45, 49 },
     { "ST Thin Bowed", kP46, 54 },

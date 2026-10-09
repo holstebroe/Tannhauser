@@ -98,6 +98,7 @@ const ParamInfo kGlobal[PARAM_COUNT - P_VOLUME] = {
     { "rev.predelay",  "Reverb Pre-delay",    "Reverb", 0, 1, 0.2, S, ParamUnit::Plain },
     { "gain",          "Patch Gain",          "Main", -24, 24, 0, S, ParamUnit::Decibel },
     { "env.long",      "Long Envelopes",      "Main", 0, 1, 0, S | T, ParamUnit::Switch },
+    { "os.4x",         "4x Oversampling",     "Main", 0, 1, 0, T, ParamUnit::Switch },
 };
 
 struct Table {

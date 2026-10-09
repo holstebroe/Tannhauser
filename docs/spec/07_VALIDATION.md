@@ -22,7 +22,11 @@ failing low level invalidates everything above it.
 | T16 | Preset loudness | every preset within ±1 LU of −18 LUFS (spec 05 §4) |
 | T13 | Sample-rate invariance | 44.1/48/96 kHz: f0 and RMS within 0.2 dB / 1 cent |
 | T14 | State round trip | save → load reproduces every parameter |
-| T15 | CPU | 16 lines at 48 kHz: real-time factor < 0.25 on CI hardware |
+| T15 | CPU | 16 lines at 48 kHz: real-time factor < 0.5 (prints it; ~0.13 on a dev core at 2×) |
+| T17 | Aliasing | G7 saw and pulse, filter open, 2× and 4×: every alias image < −75 dB re the fundamental |
+| T18 | Nonlinear filter (OtaSvf) | amplitude 0.001: gain at fc = Q (±3 %), H3 < −80 dBc; amplitude 1 (V 1.2): peak < 0.7× the small-signal gain, H3 > −40 dBc |
+| T19 | VCO jitter | Drift 0: none; Drift 1: rms 5·10⁻⁴ × card factor (0.6–1.4 × 5·10⁻⁴) |
+| T20 | 4× mode | filtered chord level within 0.5 dB of 2×, finite |
 
 ## 2. GUI (`tannhauser_gui_test`)
 

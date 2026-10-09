@@ -376,6 +376,136 @@ static void testPresetLoudness() {
     std::printf("T16 preset loudness %.2f .. %.2f LUFS\n", lo, hi);
 }
 
+// Goertzel power at frequency f (Hz) of x with a 4-term Blackman-Harris window.
+static double tonePower(const std::vector<float>& x, size_t a, size_t n, double f, int sr) {
+    const double w = kTwoPi * f / sr, c = 2.0 * std::cos(w);
+    double s1 = 0.0, s2 = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        const double m = kTwoPi * double(i) / double(n);
+        const double win = 0.35875 - 0.48829 * std::cos(m) + 0.14128 * std::cos(2 * m) - 0.01168 * std::cos(3 * m);
+        const double s0 = x[a + i] * win + c * s1 - s2;
+        s2 = s1; s1 = s0;
+    }
+    return s1 * s1 + s2 * s2 - c * s1 * s2;
+}
+
+static void testAliasing() {
+    // T17: saw and pulse at G7 (3136 Hz), filter open: every alias image of
+    // the harmonics above Nyquist (|m f0 - n fsOs| below 20 kHz, at least
+    // 30 Hz from a harmonic) stays below -75 dB re the fundamental, at 2x and 4x.
+    const int sr = 48000;
+    for (int os = 2; os <= 4; os += 2) {
+        for (int wave = 0; wave < 2; ++wave) {
+            SynthEngine e;
+            e.setSampleRate(sr);
+            ParamValues v = defaultValues();
+            v[P_DRIFT] = 0.0; v[P_MIX] = 0.0; v[P_OVERSAMPLE] = os == 4;
+            v[lineParam(0, LP_LPF)] = 1.0; v[lineParam(0, LP_RES_L)] = 0.0;
+            v[lineParam(0, LP_IL)] = 0.0; v[lineParam(0, LP_AL)] = 0.0;
+            v[lineParam(0, LP_INIT_BRILL)] = 0.0; v[lineParam(0, LP_AFTER_BRILL)] = 0.0;
+            v[lineParam(0, LP_SAW)] = wave == 0; v[lineParam(0, LP_SQUARE)] = wave == 1; v[lineParam(0, LP_PW)] = 0.5;
+            v[lineParam(0, LP_VEG_A)] = 0.0; v[lineParam(0, LP_VEG_S)] = 1.0;
+            v[lineParam(1, LP_LEVEL)] = 0.0;
+            setAll(e, v);
+            e.noteOn(103, 1.0);
+            auto x = render(e, 1.5, sr);
+            const size_t a = sr / 2, n = sr;
+            const double f0 = e.lineFrequency(0, 0);
+            const double fund = tonePower(x, a, n, f0, sr);
+            double worst = -300.0, worstF = 0.0;
+            // Every image lands at |m f0 - k sr| in the output, whichever stage folded it.
+            const double fsOs = double(sr) * os;
+            for (int m = 1; m * f0 < 4.0 * fsOs; ++m) {
+                if (m * f0 < 0.5 * sr) continue;
+                for (int k = 1; k <= static_cast<int>(m * f0 / sr) + 1; ++k) {
+                    const double fa = std::fabs(m * f0 - double(k) * sr);
+                    if (fa < 30.0 || fa > 20000.0) continue;
+                    const double rel = fa / f0;
+                    if (std::fabs(rel - std::round(rel)) * f0 < 30.0) continue;
+                    const double db = 10.0 * std::log10(tonePower(x, a, n, fa, sr) / fund + 1e-30);
+                    if (db > worst) { worst = db; worstF = fa; }
+                }
+            }
+            CHECK(worst < -75.0, "T17 %s %dx: alias at %.0f Hz is %.1f dB (want < -75)", wave ? "pulse" : "saw", os, worstF, worst);
+        }
+    }
+}
+
+static void testNonlinearFilter() {
+    // T18: OTA SVF (spec 02 §4). Small signals: the linear SVF (gain Q at
+    // fc); large signals: the resonance compresses and odd harmonics appear.
+    const double fs = 96000.0, fc = 1000.0, q = 5.0;
+    auto run = [&](double amp, double& gain, double& h3) {
+        OtaSvf f;
+        f.setCoeffs(std::tan(kPi * fc / fs), 1.0 / q);
+        const int n = 96000;
+        std::vector<float> x(n), y(n);
+        double lp, bp, hp;
+        for (int i = 0; i < n; ++i) {
+            x[i] = static_cast<float>(amp * std::sin(kTwoPi * fc * i / fs));
+            f.tick(x[i], 1.0 / 1.2, lp, bp, hp);
+            y[i] = static_cast<float>(lp);
+        }
+        const double pin = tonePower(x, n / 2, n / 2, fc, 96000);
+        const double p1 = tonePower(y, n / 2, n / 2, fc, 96000), p3 = tonePower(y, n / 2, n / 2, 3 * fc, 96000);
+        gain = std::sqrt(p1 / pin);
+        h3 = 10.0 * std::log10(p3 / p1 + 1e-30);
+    };
+    double gSmall, h3Small, gBig, h3Big;
+    run(0.001, gSmall, h3Small);
+    run(1.0, gBig, h3Big);
+    CHECK(std::fabs(gSmall / q - 1.0) < 0.03, "T18 small-signal gain at fc %.3f want %.1f", gSmall, q);
+    CHECK(gBig < 0.7 * gSmall, "T18 resonance compression %.2f vs %.2f (want < 0.7x)", gBig, gSmall);
+    CHECK(h3Small < -80.0 && h3Big > -40.0, "T18 3rd harmonic %.1f dB small, %.1f dB large", h3Small, h3Big);
+}
+
+static void testJitter() {
+    // T19: cycle-to-cycle jitter (spec 02 §8): none at Drift 0; at Drift 1 an
+    // rms of 5e-4 x the card's factor (0.7..1.3).
+    const int sr = 48000;
+    for (double drift : { 0.0, 1.0 }) {
+        SynthEngine e;
+        e.setSampleRate(sr);
+        ParamValues v = sinePatch();
+        v[P_DRIFT] = drift;
+        setAll(e, v);
+        e.noteOn(84, 1.0);
+        std::vector<float> l(1), r(1);
+        double last = e.voice(0).line[0].jitter, sum2 = 0.0, maxDev = 0.0;
+        int count = 0;
+        for (int i = 0; i < sr; ++i) {
+            e.process(l.data(), r.data(), 1);
+            const double j = e.voice(0).line[0].jitter;
+            if (j != last) { sum2 += (j - 1.0) * (j - 1.0); ++count; last = j; }
+            maxDev = std::max(maxDev, std::fabs(j - 1.0));
+        }
+        const double rmsJ = count ? std::sqrt(sum2 / count) : 0.0;
+        if (drift == 0.0) CHECK(maxDev == 0.0, "T19 jitter at Drift 0: %.2g", maxDev);
+        else CHECK(count > 500 && rmsJ > 0.6 * 5e-4 && rmsJ < 1.4 * 5e-4, "T19 jitter rms %.3g over %d cycles", rmsJ, count);
+    }
+}
+
+static void testOversamplingModes() {
+    // T20: os.4x gives the same level as 2x (filtered chord, within 0.5 dB) and finite output.
+    const int sr = 48000;
+    double ref = 0.0;
+    for (int os : { 2, 4 }) {
+        SynthEngine e;
+        e.setSampleRate(sr);
+        ParamValues v = defaultValues();
+        v[P_DRIFT] = 0.0;
+        v[P_OVERSAMPLE] = os == 4;
+        setAll(e, v);
+        e.noteOn(48, 0.8); e.noteOn(60, 0.8);
+        auto x = render(e, 1.0, sr);
+        bool finite = true;
+        for (float s : x) finite = finite && std::isfinite(s);
+        const double r = rms(x, x.size() / 2, x.size());
+        if (os == 2) ref = r;
+        else CHECK(finite && std::fabs(20.0 * std::log10(r / ref)) < 0.5, "T20 4x rms %.4f vs 2x %.4f", r, ref);
+    }
+}
+
 static void testCpu() {
     // T15: 8 voices (16 lines), 48 kHz.
     const int sr = 48000;
@@ -413,6 +543,10 @@ int main() {
     testPresetsRobust();
     testSampleRateInvariance();
     testPresetLoudness();
+    testAliasing();
+    testNonlinearFilter();
+    testJitter();
+    testOversamplingModes();
     testCpu();
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;
