@@ -2,6 +2,9 @@
 
 #include "core/SynthEngine.hpp"
 #include "presets/Presets.hpp"
+#include "Loudness.hpp"
+#include <atomic>
+#include <thread>
 #include <algorithm>
 #include <chrono>
 #include <cmath>
@@ -342,6 +345,25 @@ static void testSampleRateInvariance() {
     }
 }
 
+static void testPresetLoudness() {
+    // T16: every preset within +-1 LU of the loudness target (spec 05 §4).
+    PresetLibrary lib;
+    const auto& ps = lib.presets();
+    std::vector<double> loud(ps.size());
+    std::atomic<size_t> next{ 0 };
+    auto work = [&] { for (size_t i; (i = next++) < ps.size();) loud[i] = presetLoudness(ps[i].values); };
+    std::vector<std::thread> pool;
+    for (unsigned t = 0; t < std::max(1u, std::thread::hardware_concurrency()); ++t) pool.emplace_back(work);
+    for (auto& t : pool) t.join();
+    double lo = 0.0, hi = -100.0;
+    for (size_t i = 0; i < ps.size(); ++i) {
+        lo = std::min(lo, loud[i]); hi = std::max(hi, loud[i]);
+        CHECK(std::fabs(loud[i] - kLoudnessTarget) < 1.0, "T16 preset '%s' at %.2f LUFS (target %.1f): rerun tannhauser_loudness --fit",
+              ps[i].name.c_str(), loud[i], kLoudnessTarget);
+    }
+    std::printf("T16 preset loudness %.2f .. %.2f LUFS\n", lo, hi);
+}
+
 static void testCpu() {
     // T15: 8 voices (16 lines), 48 kHz.
     const int sr = 48000;
@@ -378,6 +400,7 @@ int main() {
     testFilterNoSelfOscillation();
     testPresetsRobust();
     testSampleRateInvariance();
+    testPresetLoudness();
     testCpu();
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;

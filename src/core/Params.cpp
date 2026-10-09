@@ -96,6 +96,7 @@ const ParamInfo kGlobal[PARAM_COUNT - P_VOLUME] = {
     { "rev.decay",     "Reverb Decay",        "Reverb", 0, 1, 0.6, S, ParamUnit::Plain },
     { "rev.tone",      "Reverb Tone",         "Reverb", 0, 1, 0.6, S, ParamUnit::Plain },
     { "rev.predelay",  "Reverb Pre-delay",    "Reverb", 0, 1, 0.2, S, ParamUnit::Plain },
+    { "gain",          "Patch Gain",          "Main", -24, 24, 0, S, ParamUnit::Decibel },
 };
 
 struct Table {
@@ -173,6 +174,7 @@ void paramValueText(uint32_t id, double value, char* buf, size_t cap) {
         case ParamUnit::SusMode: std::snprintf(buf, cap, "%s", value >= 0.5 ? "II" : "I"); break;
         case ParamUnit::PortaMode: std::snprintf(buf, cap, "%s", value >= 0.5 ? "Glissando" : "Portamento"); break;
         case ParamUnit::Bipolar: std::snprintf(buf, cap, "%+.1f", value * 10.0); break;
+        case ParamUnit::Decibel: std::snprintf(buf, cap, "%+.1f dB", value); break;
         case ParamUnit::Plain:
         default: std::snprintf(buf, cap, "%.1f", value * 10.0); break;
     }

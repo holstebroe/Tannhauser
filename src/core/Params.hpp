@@ -90,6 +90,7 @@ enum GlobalParam : uint32_t {
     P_REV_DECAY,
     P_REV_TONE,
     P_REV_PREDELAY,
+    P_GAIN,           // per-preset loudness trim [A], appended 2026-10-09
     PARAM_COUNT
 };
 
@@ -112,6 +113,7 @@ enum class ParamUnit : uint8_t {
     SusMode,
     PortaMode,
     Bipolar,      // -1..1 shown as -10..+10
+    Decibel,
 };
 
 struct ParamInfo {

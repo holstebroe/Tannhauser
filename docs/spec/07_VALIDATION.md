@@ -19,6 +19,7 @@ failing low level invalidates everything above it.
 | T10 | Sustain II | new note silences fading notes within 10 ms |
 | T11 | Glide | new voice starts at the last played key's pitch |
 | T12 | Robustness | all presets: 8-note chord, finite output, peak < 1.0 |
+| T16 | Preset loudness | every preset within ±1 LU of −18 LUFS (spec 05 §4) |
 | T13 | Sample-rate invariance | 44.1/48/96 kHz: f0 and RMS within 0.2 dB / 1 cent |
 | T14 | State round trip | save → load reproduces every parameter |
 | T15 | CPU | 16 lines at 48 kHz: real-time factor < 0.25 on CI hardware |

@@ -17,6 +17,8 @@ GUI libraries (same constraints as Acidus/Gritbaal).
   them); only append.
 - Presets: edit `tools/preset_library.py`, then run `python3 tools/gen_presets.py` (it
   validates keys and regenerates `src/presets/PresetData.cpp`; never edit that file).
+  Then rebuild, run `build/tannhauser_loudness --fit tools/preset_gains.json`, regenerate and
+  rebuild again so the new preset is loudness-matched (test T16).
 
 ## Rules
 

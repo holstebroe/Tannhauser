@@ -479,6 +479,8 @@ void SynthEngine::process(float* outL, float* outR, int n) {
         const double rmD = decayCoeff(decayTimeSec(p[P_RM_DECAY]), fsOs_);
         const double rmMod = p[P_RM_MOD];
 
+        // Patch gain [A]: the per-preset loudness trim (spec 03 §13).
+        const double patchGain = std::pow(10.0, p[P_GAIN] / 20.0) * params_[P_EXPRESSION];
         for (int i = 0; i < m; ++i) {
             double os[kOversample];
             for (int k = 0; k < kOversample; ++k) {
@@ -528,7 +530,7 @@ void SynthEngine::process(float* outL, float* outR, int n) {
                 }
                 os[k] = bus;
             }
-            mono_[i] = static_cast<float>(decimator_.process(os[0], os[1]) * params_[P_EXPRESSION]);
+            mono_[i] = static_cast<float>(decimator_.process(os[0], os[1]) * patchGain);
         }
 
         // Chorus / tremolo (stereo), reverb, volume, soft clip.

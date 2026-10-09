@@ -149,7 +149,7 @@ Seeded per card (16 cards, seed exposed in code) and scaled by the global **Drif
 ## 9. Preset-row inversions (decoded factory data → slider position)
 
 The factory matrices store row *voltages*. Conversion to slider position (doc 05):
-- time rows (13–15, 18, 19, 21): `pos = 1 − V/10` (**higher voltage = shorter time** [I §14.5,
-  see open issue P-1 in the plan: this does not fit the String/Brass presets]);
+- time rows (13–15, 18, 19, 21): `pos = 1 − V/10` (**higher voltage = shorter time** [I §14.5; tested
+  in spec 05 §3: 62/74 plausible vs 33/74 for the opposite polarity, plan P-1]);
 - resonance rows (8, 10): `pos = 1 − V/10` (VQ 10 V = Q 0.5 = no resonance) [S];
 - all other rows: `pos = V/10`.

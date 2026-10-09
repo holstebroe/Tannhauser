@@ -71,11 +71,24 @@ Feet are not part of the tone matrices (the Feet lever is a panel control); fact
   played (both channels on).
 
 Caveats carried from the source: bus-to-button order assumed [I]; channel II read from the
-circuit pages only; single cells ±10 %; the time-row polarity is open issue P-1.
+circuit pages only; single cells ±10 %.
+
+**Time-row polarity test** (`python3 tools/analyze_factory_polarity.py`, 2026-10-09). With no
+recording available, each hypothesis is scored against plausible time ranges per tone family
+(harpsichord: attack ≤ 10 ms, release ≤ 350 ms; strings: attack ≥ 30 ms, release ≥ 250 ms; …,
+ranges [D] in the script). Result over the 74 audible time settings of the 22 tones:
+"higher V = shorter time" 62/74 plausible, "higher V = longer" 33/74; no single row prefers
+the opposite polarity (mixed wiring explains nothing more). The misfits are the four String
+tones (fast attack 3–50 ms, release 40–90 ms — consistent with the staccato string vamps the
+factory strings are known for) and the 10 ms release of Brass 1/2 and Electric Piano. A
+bus-to-button reordering test (exact assignment search) improves the fit by under one tone
+per channel, so the printed order (P-9) is kept. Decision: keep the inverted time rows.
+
+Factory tones keep their decoded line levels; loudness is evened out by Patch Gain only (§4).
 
 ## 4. Library presets (PD, ST, BR, …)
 
-Hand-designed in `tools/gen_presets.py` as parameter dictionaries over the Init patch, aiming
+Hand-designed in `tools/preset_library.py` as parameter dictionaries over the Init patch, aiming
 at well-known CS-80 idioms (Blade Runner brass and pads, Vangelis aftertouch swells, "Memories
 of Green" glides, Toto-style brass stabs, Wonderful Christmastime sub-osc stabs, sync-free
 CS-80 leads with ribbon, ring-mod bells, S&H effects). Target ≥ 60 presets. Each preset must
@@ -83,6 +96,17 @@ pass the robustness test (finite output, peak < 0 dBFS for an 8-note chord at ve
 
 The generator writes `src/presets/PresetData.cpp` (an array of `{name, {key, value}…}`), so
 presets need no files at runtime. Run: `python3 tools/gen_presets.py`.
+
+**Loudness normalisation.** Every built-in preset (FT, FC and library) is trimmed with Patch
+Gain [A] to **−18 LUFS** (`kLoudnessTarget`, about the library's median before trimming):
+ITU-R BS.1770 K-weighted *maximum momentary* loudness (400 ms windows), averaged in LU over two
+phrases — a held six-note chord and a twelve-note line, velocity 0.75, no aftertouch
+(`src/tests/Loudness.hpp`). Workflow after adding or editing presets:
+`python3 tools/gen_presets.py` → build → `build/tannhauser_loudness --fit tools/preset_gains.json`
+→ `python3 tools/gen_presets.py` → build. Test T16 fails when any preset is off by ≥ 1 LU.
+Before trimming the presets spread over 21.5 LU (−35.2 FT Harpsichord 2 … −13.6 OR Church
+Organ); fitted gains are −4.6…+17.3 dB, and after trimming −18.15…−17.89 LUFS. Presets that
+rely on aftertouch (e.g. PD Aftertouch Swell) are louder than the target when pressed.
 
 ## 5. User presets
 

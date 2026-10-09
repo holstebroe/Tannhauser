@@ -100,6 +100,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 4.5 | User presets: Save As / scan folder | ✅ |
 | 4.6 | Tone-selector buttons load factory tone per line; Memory 1–4 slots | ✅ |
 | 4.7 | Re-voice library presets after A/B listening against recordings | 🔬 |
+| 4.8 | Loudness normalisation: Patch Gain [A] fitted to −18 LUFS for every preset, `tannhauser_loudness`, test T16 | ✅ |
 
 ### WP5 — UI (spec 06)
 | ID | Issue | Status |
@@ -121,7 +122,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 ### WP7 — Open hardware questions (from CS-80 compendium §10.1)
 | ID | Question | Current default (where) | Status |
 | --- | --- | --- | --- |
-| P-1 | **Time-row polarity of the factory matrices.** Doc §14.5 infers "higher V = shorter time" from plucked tones (A/R rows at 10 V). This fails for String 1 (VCA A 8.2 V → 3.5 ms attack) and Brass (R 10 V → 10 ms). The opposite polarity fails worse (Harpsichord release 10 s). Evidence for "higher V = longer": SUB-board sustain diodes OR a *higher* voltage onto RF/RA when the pedal lengthens release. Resolve with a recording of factory String 1/Harpsichord 1, or the TWS/SUB scaling. | inverted (02 §9) | 🔬 |
+| P-1 | **Time-row polarity of the factory matrices.** Doc §14.5 infers "higher V = shorter time" from plucked tones (A/R rows at 10 V). This fails for String 1 (VCA A 8.2 V → 3.5 ms attack) and Brass (R 10 V → 10 ms). The opposite polarity fails worse (Harpsichord release 10 s). Evidence for "higher V = longer": SUB-board sustain diodes OR a *higher* voltage onto RF/RA when the pedal lengthens release. Resolve with a recording of factory String 1/Harpsichord 1, or the TWS/SUB scaling. **Tested 2026-10-09** (`tools/analyze_factory_polarity.py`, spec 05 §3): inverted 62/74 plausible, direct 33/74, no row prefers direct; misfits = String tones (staccato, plausible for the factory vamp strings) and 10 ms Brass/E.Piano release. Kept inverted; a recording would still settle the strings. | inverted (02 §9) | 🟡 tested by plausibility, not by recording |
 | P-2 | Slider → time law and curve shapes | exponential, RC curves (02 §5) | 🔬 |
 | P-3 | HPF/LPF cutoff law at the slider and tracking | linear Vf, 100 % KV tracking (02 §4) | 🔬 |
 | P-4 | HPF:LPF modulation (resistor weights 0.32–0.47 vs Cherry's "half the octaves") | HPF slider ×0.47, modulation = half the LPF octaves (02 §4) | 🔬 |
@@ -129,7 +130,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | P-6 | Saw start pulse shape per card | 2 %, +0.2, ±30 % | 🔬 |
 | P-7 | Ribbon range, scoop depth/speed, detune range | ±1 oct, 2 st/60 ms, 12 Hz | 🔬 |
 | P-8 | Velocity extraction from one FSR signal | MIDI velocity | 🔬 |
-| P-9 | Bus-to-button order on T51–T54 | printed order | 🔬 |
+| P-9 | Bus-to-button order on T51–T54 | printed order (assignment search on envelope times gains < 1 tone per channel: no better order found) | 🔬 |
 | P-10 | Row 17 ("wave symbol") identity | sine level (inferred from M pin LP1) | 🔬 |
 | P-11 | Q law between the two IC data points | exponential | 🔬 |
 | P-12 | Sustain level row 20 for Organ (20 %) looks wrong | as decoded | 🔬 |
@@ -150,6 +151,8 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2026-10-09 | One 2× oversampled island for all voices, decimated once on the mono bus |
 | 2026-10-09 | Software presets store global sections too (hardware paddles are not stored) |
 | 2026-10-09 | Factory time polarity follows compendium §14.6 (inverted) until P-1 is resolved |
+| 2026-10-09 | P-1 plausibility test confirms the inverted polarity (62/74 vs 33/74); kept |
+| 2026-10-09 | Loudness: presets are trimmed by an added, stored Patch Gain (not by editing decoded line levels) to −18 LUFS max-momentary |
 
 ## Progress log
 
@@ -162,5 +165,8 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 - 2026-10-09 — Calibration decisions while voicing: Level slider is linear (B10K into the VCA
   LI input); the HPF slider goes through the 0.47 divider and modulators move the HPF by half
   the LPF's octaves (the first draft's volt-weighted HPF made plucks ~10 dB too thin).
-- Next suggested steps: P-1 (time polarity) with a reference recording; 1.5 nonlinear SVF;
+- 2026-10-09 — P-1 tested (`tools/analyze_factory_polarity.py`): inverted polarity kept. Added
+  Patch Gain (param 95) and loudness normalisation of all 102 presets to −18 LUFS (±0.15 LU),
+  `tannhauser_loudness`, test T16; dsp test 249 checks.
+- Next suggested steps: P-1 confirmation with a reference recording; 1.5 nonlinear SVF;
   1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

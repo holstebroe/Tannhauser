@@ -84,8 +84,9 @@ Flags: **S** = stored in software presets (patch); **P** = performance-only (not
 | 92 | rev.decay | Reverb Decay [A] | 0.6 | S | — |
 | 93 | rev.tone | Reverb Tone [A] | 0.6 | S | — |
 | 94 | rev.predelay | Reverb Pre-delay [A] | 0.2 | S | — |
+| 95 | gain | Patch Gain [A] | −24..+24 dB, 0 | S | — (per-preset loudness trim, spec 05 §4) |
 
-Count: 95 (`PARAM_COUNT`).
+Count: 96 (`PARAM_COUNT`).
 
 ## MIDI
 

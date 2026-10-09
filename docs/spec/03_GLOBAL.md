@@ -109,5 +109,8 @@ plan WP8.
 
 ## 13. Output
 
+**Patch Gain** [A] (`gain`, dB, stored in presets) scales the mono bus after decimation, before
+chorus/reverb; it is the per-preset loudness trim (spec 05 §4).
+
 `L,R × 1.6·volume²`, then a soft clip `tanh` (the "hot" post-mix VCA, §7.1 unverified) [D].
 The voice bus is scaled by 0.15 before the ring modulator.

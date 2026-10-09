@@ -106,6 +106,14 @@ def cpp_string(s):
 def main():
     ft, fc = factory_presets()
     presets = [("IN Init", {})] + ft + fc + list(LIBRARY)
+    # Per-preset loudness trim (Patch Gain [A]) fitted by
+    # `tannhauser_loudness --fit tools/preset_gains.json` (spec 05 §4).
+    gains_file = ROOT / "tools/preset_gains.json"
+    gains = json.loads(gains_file.read_text()) if gains_file.exists() else {}
+    for name, vals in presets:
+        g = gains.get(name)
+        if g is not None and abs(g) >= 0.05:
+            vals["gain"] = round(float(g), 1)
     names = [n for n, _ in presets]
     dupes = {n for n in names if names.count(n) > 1}
     if dupes:

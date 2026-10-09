@@ -87,10 +87,17 @@ add_dependencies(deploy_clap tannhauser)
 # DSP verification (docs/spec/07_VALIDATION.md).
 add_executable(tannhauser_dsp_test src/tests/dsp_test_main.cpp)
 target_link_libraries(tannhauser_dsp_test PRIVATE tannhauser_core)
+find_package(Threads REQUIRED)
+target_link_libraries(tannhauser_dsp_test PRIVATE Threads::Threads)
 
 # Offline renderer: preset + phrase -> WAV, for listening and A/B.
 add_executable(tannhauser_render src/tests/render_main.cpp)
 target_link_libraries(tannhauser_render PRIVATE tannhauser_core)
+
+# Preset loudness report / Patch Gain fit (spec 05 §4).
+add_executable(tannhauser_loudness src/tests/loudness_main.cpp)
+target_link_libraries(tannhauser_loudness PRIVATE tannhauser_core)
+target_link_libraries(tannhauser_loudness PRIVATE Threads::Threads)
 
 # GUI verification: offscreen render + interaction, plugin state round trip.
 add_executable(tannhauser_gui_test ${CLAP_SOURCES} ${GUI_SOURCES} src/tests/gui_test_main.cpp)

@@ -30,7 +30,8 @@ build specification in `docs/spec/`:
   decoded from the T51–T54 resistor matrices (`FT …`), 11 two-line factory combos (`FC …`),
   and a library of ~70 presets with two-letter categories (`PD` pads, `BR` brass, `ST`
   strings, `LD` leads, `BS` bass, `KY` keys, `OR` organ, `PL` pluck, `BL` bells, `SQ`,
-  `FX`), plus user presets saved as `.tpreset` text files.
+  `FX`), plus user presets saved as `.tpreset` text files. All built-in presets are
+  loudness-matched to −18 LUFS with a per-preset Patch Gain.
 - **Panel** laid out like the CS-80: two programming rows, the performance strip with the
   tone selector and preset display, the left-hand panel, ribbon and a playable keyboard.
 
@@ -50,6 +51,7 @@ Linux needs `libx11-dev`. Outputs:
 | `tannhauser_dsp_test` | DSP conformance tests (`docs/spec/07_VALIDATION.md`) |
 | `tannhauser_gui_test [snapshot.ppm]` | offscreen GUI + plugin state tests |
 | `tannhauser_render "<preset>" out.wav [chord\|line\|swell\|bass\|all]` | offline renderer |
+| `tannhauser_loudness [--fit tools/preset_gains.json]` | preset loudness report / gain fit |
 
 `cmake --build build --target deploy_clap` copies the plugin to the folder in `$CLAPTEST`.
 
