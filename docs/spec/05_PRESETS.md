@@ -77,7 +77,8 @@ circuit pages only; single cells ±10 %.
 recording available, each hypothesis is scored against plausible time ranges per tone family
 (harpsichord: attack ≤ 10 ms, release ≤ 350 ms; strings: attack ≥ 30 ms, release ≥ 250 ms; …,
 ranges [D] in the script). Result over the 74 audible time settings of the 22 tones:
-"higher V = shorter time" 62/74 plausible, "higher V = longer" 33/74; no single row prefers
+"higher V = shorter time" 62/74 plausible, "higher V = longer" 33/74 (re-run 2026-10-09 with
+the Arturia time ranges of spec 02 §5/§6: 58/74 vs 28/74, same verdict); no single row prefers
 the opposite polarity (mixed wiring explains nothing more). The misfits are the four String
 tones (fast attack 3–50 ms, release 40–90 ms — consistent with the staccato string vamps the
 factory strings are known for) and the 10 ms release of Brass 1/2 and Electric Piano. A

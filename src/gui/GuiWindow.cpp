@@ -41,6 +41,7 @@ void margins(const Ctl& c, int& mx, int& my) {
         case CtlType::Knob: mx = 8; my = 8; break;
         case CtlType::Lever: mx = 3; my = 3; break;
         case CtlType::Rocker: mx = 2; my = 2; break;
+        case CtlType::Toggle: mx = 2; my = 2; break;
         case CtlType::ToneButton: mx = 1; my = 1; break;
         case CtlType::Keyboard: mx = 0; my = 0; break;
         default: mx = 2; my = 2; break;
@@ -74,7 +75,8 @@ CtlState GuiWindow::stateFor(int i) const {
     const double v = (c.param >= 0 && plugin_) ? plugin_->paramValue(static_cast<clap_id>(c.param)) : 0.0;
     switch (c.type) {
         case CtlType::Slider: case CtlType::Paddle: case CtlType::Knob: s.norm = paramNorm(c.param); break;
-        case CtlType::Rocker: s.on = v >= 0.5; break;
+        case CtlType::Rocker:
+        case CtlType::Toggle: s.on = v >= 0.5; break;
         case CtlType::Lever: s.step = static_cast<int>(std::lround(v)); break;
         case CtlType::ToneButton: {
             const int row = c.aux / 16, b = c.aux % 16;
@@ -154,6 +156,8 @@ void GuiWindow::updateReadout() {
         char val[64];
         plugin_->paramsValueToText(static_cast<clap_id>(c.param), plugin_->paramValue(static_cast<clap_id>(c.param)), val, sizeof(val));
         readout_ = std::string(paramInfo(static_cast<uint32_t>(c.param)).name) + ":  " + val;
+        const char* desc = paramDescription(static_cast<uint32_t>(c.param));
+        if (desc && *desc) readout_ += std::string("\n") + desc;
     } else if (c.type == CtlType::ToneButton) {
         const int row = c.aux / 16, b = c.aux % 16;
         if (b < 11) readout_ = std::string("LOAD FACTORY TONE INTO LINE ") + (row == 0 ? "I: " : "II: ") + kFactoryToneNames[row][b];
@@ -344,6 +348,7 @@ void GuiWindow::handleMouseDown(int x, int y, bool shift) {
             }
             break;
         case CtlType::Rocker:
+        case CtlType::Toggle:
             if (plugin_) setParamFromGui(c.param, plugin_->paramValue(static_cast<clap_id>(c.param)) >= 0.5 ? 0.0 : 1.0, true);
             break;
         case CtlType::Lever: {
@@ -372,7 +377,13 @@ void GuiWindow::handleMouseDown(int x, int y, bool shift) {
         case CtlType::Ribbon:
             beginEdit(i);
             ribbonTouch_ = static_cast<double>(x - c.x) / c.w;
-            if (plugin_) plugin_->onParamValueFromGui(static_cast<clap_id>(c.param), 0.0);
+            if (plugin_) {
+                // Touch first: the engine then bends the sounding notes relative to here (spec 03 §7).
+                plugin_->onBeginEditFromGui(P_RIBBON_TOUCH);
+                plugin_->onParamValueFromGui(P_RIBBON_TOUCH, 1.0);
+                plugin_->onEndEditFromGui(P_RIBBON_TOUCH);
+                plugin_->onParamValueFromGui(static_cast<clap_id>(c.param), 0.0);
+            }
             break;
         case CtlType::Keyboard: {
             const int k = keyAt(x, y);
@@ -435,6 +446,10 @@ void GuiWindow::handleMouseUp() {
     if (active_ >= 0) {
         const Ctl& c = panelLayout().controls[static_cast<size_t>(active_)];
         if (c.type == CtlType::Ribbon && plugin_) {
+            // Release the touch before the ribbon returns to 0, so held bends stay.
+            plugin_->onBeginEditFromGui(P_RIBBON_TOUCH);
+            plugin_->onParamValueFromGui(P_RIBBON_TOUCH, 0.0);
+            plugin_->onEndEditFromGui(P_RIBBON_TOUCH);
             plugin_->onParamValueFromGui(static_cast<clap_id>(c.param), 0.0);
             ribbonTouch_ = -1.0;
         }

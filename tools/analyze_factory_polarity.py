@@ -21,13 +21,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-ATTACK_ROWS = {13, 18}
 TIME_ROWS = {13: "VCF A", 14: "VCF D", 15: "VCF R", 18: "VCA A", 19: "VCA D", 21: "VCA R"}
+
+
+# Classic time ranges (s) per row, spec 02 §5/§6 (Arturia CS-80 V manual): T = 2 ms * (Tmax/2 ms)^pos.
+TMAX = {13: 0.580, 14: 8.75, 15: 11.0, 18: 0.885, 19: 7.35, 21: 11.5}
 
 
 def seconds(row, v, hyp):
     pos = 1.0 - v / 10.0 if hyp == "inv" else v / 10.0
-    return (0.001 if row in ATTACK_ROWS else 0.010) * 1000.0 ** pos
+    return 0.002 * (TMAX[row] / 0.002) ** pos
 
 
 # Plausible time ranges in seconds per tone family [D]. Missing rows are not scored.

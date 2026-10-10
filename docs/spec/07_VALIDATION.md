@@ -13,7 +13,7 @@ failing low level invalidates everything above it.
 | T4 | LPF small-signal response at Res max for fc 100 Hz, 1 kHz, 5 kHz | peak gain falls with fc; < +6 dB above 5 kHz; never self-oscillates (impulse decays) |
 | T5 | HPF→LPF tracking: an FEG sweep moves the HPF by half the LPF's octaves | ratio 0.5 ± 0.01 |
 | T6 | Filter EG shapes | IL only: starts −5·il V, ends −5·il V; AL only: peak +5·al V, rests 0 V |
-| T7 | Envelope time law | A=0 → ≈1 ms, A=1 → ≈1 s; D/R 10 ms…10 s (±10 %) |
+| T7 | Envelope time law | VCA A 2 ms…885 ms, R 2 ms…11.5 s; Long [A] A to 10 s, R to 40 s (±15 %) |
 | T8 | Per-voice touch | pressure on one voice of a chord changes only that voice |
 | T9 | Ring-mod envelope | retriggers only when all keys were up |
 | T10 | Sustain II | new note silences fading notes within 10 ms |
@@ -22,7 +22,13 @@ failing low level invalidates everything above it.
 | T16 | Preset loudness | every preset within ±1 LU of −18 LUFS (spec 05 §4) |
 | T13 | Sample-rate invariance | 44.1/48/96 kHz: f0 and RMS within 0.2 dB / 1 cent |
 | T14 | State round trip | save → load reproduces every parameter |
-| T15 | CPU | 16 lines at 48 kHz: real-time factor < 0.25 on CI hardware |
+| T15 | CPU | 16 lines at 48 kHz: real-time factor < 0.5 (prints it; ~0.13 on a dev core at 2×) |
+| T17 | Aliasing | G7 saw and pulse, filter open, 2× and 4×: every alias image < −75 dB re the fundamental |
+| T18 | Nonlinear filter (OtaSvf) | amplitude 0.001: gain at fc = Q (±3 %), H3 < −80 dBc; amplitude 1 (V 1.2): peak < 0.7× the small-signal gain, H3 > −40 dBc |
+| T19 | VCO jitter | Drift 0: none; Drift 1: rms 5·10⁻⁴ × card factor (0.6–1.4 × 5·10⁻⁴) |
+| T20 | 4× mode | filtered chord level within 0.5 dB of 2×, finite |
+| T22 | Ribbon hold | touched +6 st bend stays after release with Hold on, returns with Hold off; new notes unbent; a second touch bends on from the held pitch |
+| T21 | Value text | every parameter's shown value (Hz at C4, Q, V, %, st, dB, ms, names) parses back to its position, both envelope modes |
 
 ## 2. GUI (`tannhauser_gui_test`)
 

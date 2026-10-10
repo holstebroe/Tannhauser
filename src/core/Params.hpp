@@ -91,6 +91,10 @@ enum GlobalParam : uint32_t {
     P_REV_TONE,
     P_REV_PREDELAY,
     P_GAIN,           // per-preset loudness trim [A], appended 2026-10-09
+    P_ENV_LONG,       // Long envelope mode [A], appended 2026-10-09
+    P_OVERSAMPLE,     // 4x oversampling [A] (plan 1.10), appended 2026-10-09
+    P_RIBBON_TOUCH,   // ribbon is being touched (GUI), appended 2026-10-10
+    P_RIBBON_HOLD,    // bent notes keep the ribbon pitch on release [A], appended 2026-10-10
     PARAM_COUNT
 };
 
@@ -105,8 +109,8 @@ enum class ParamUnit : uint8_t {
     Plain,        // 0..1 shown as 0..10 (the hardware's slider scale)
     Feet,
     Switch,
-    AttackTime,   // 1 ms .. 1 s
-    DecayTime,    // 10 ms .. 10 s
+    Time,         // seconds, law per parameter (paramTimeLaw)
+    Hertz,        // rate, law per parameter (paramRateHz)
     Percent,
     Semitones,
     SubFunc,
@@ -114,6 +118,7 @@ enum class ParamUnit : uint8_t {
     PortaMode,
     Bipolar,      // -1..1 shown as -10..+10
     Decibel,
+    Physical,     // circuit value: Hz at C4, Q, V, %, st, dB ... (spec 04 "Value display")
 };
 
 struct ParamInfo {
@@ -128,13 +133,35 @@ struct ParamInfo {
 const ParamInfo& paramInfo(uint32_t id);
 // -1 if the key is unknown.
 int paramIdFromKey(const char* key);
-// Display text (fills buf).
-void paramValueText(uint32_t id, double value, char* buf, size_t cap);
+// Display text (fills buf). longEnv: the Long envelope mode is on (it changes
+// the envelope time ranges shown).
+void paramValueText(uint32_t id, double value, char* buf, size_t cap, bool longEnv = false);
 double clampParam(uint32_t id, double v);
+// One-line description for tooltips (spec 04).
+const char* paramDescription(uint32_t id);
+// Parses a value typed in the units paramValueText shows (the inverse mapping).
+bool paramTextToValue(uint32_t id, const char* text, double* out, bool longEnv = false);
 
-// Envelope time laws shared by the DSP and the value display (spec 02 §5).
-double attackTimeSec(double pos);   // 1 ms .. 1 s
-double decayTimeSec(double pos);    // 10 ms .. 10 s
+// Time laws shared by the DSP and the value display (spec 02 §5/§6, 03 §8/§9):
+// T = tmin * (tmax/tmin)^pos, ranges per control.
+enum class TimeLaw : uint8_t {
+    VcfAttack, VcfDecay, VcfRelease,
+    VcaAttack, VcaDecay, VcaRelease,
+    RmAttack, RmDecay,
+    Sustain,
+};
+double timeSec(TimeLaw law, double pos, bool longEnv = false);
+double timePos(TimeLaw law, double sec, bool longEnv = false);   // inverse, clamped 0..1
+// The time law of a Time-unit parameter (false for other parameters).
+bool paramTimeLaw(uint32_t id, TimeLaw* law);
+
+// Rate laws (spec 02 §2, 03 §3/§4/§9): slider position -> Hz.
+double pwmRateHz(double pos);      // PWM LFO 0.1 .. 127 Hz
+double subRateHz(double pos);      // sub-oscillator 0.5 .. 100 Hz
+double rmRateHz(double v);         // ring-mod carrier 0.25 + 204.75 Hz/unit (linear, v may exceed 1)
+// Rate in Hz of a Hertz-unit parameter, and its inverse.
+double paramRateHz(uint32_t id, double pos);
+double paramRatePos(uint32_t id, double hz);
 
 } // namespace tannhauser
 
