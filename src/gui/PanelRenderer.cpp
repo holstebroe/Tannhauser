@@ -27,6 +27,43 @@ void label(Graphics& g, const char* text, float cx, float capTop, float cap = kL
     drawTextCentered(g, kLabelFont, text, cx, capTop, cap, ink, 0.08f);
 }
 
+// Waveform symbols printed on the CS-80 (pulse, saw, sine), cap-height tall.
+void waveSymbol(Graphics& g, const char* name, float cx, float capTop, float cap, uint32_t ink) {
+    const float y0 = capTop, y1 = capTop + cap, w = cap * 1.6f, lw = 0.9f;
+    if (std::strcmp(name, "SQ") == 0) {
+        const float xs[6] = { cx - w * 0.5f, cx - w * 0.2f, cx - w * 0.2f, cx + w * 0.2f, cx + w * 0.2f, cx + w * 0.5f };
+        const float ys[6] = { y1, y1, y0, y0, y1, y1 };
+        for (int i = 0; i < 5; ++i) drawLineAA(g, xs[i], ys[i], xs[i + 1], ys[i + 1], lw, ink);
+    } else if (std::strcmp(name, "SAW") == 0) {
+        drawLineAA(g, cx - w * 0.4f, y1, cx + w * 0.3f, y0, lw, ink);
+        drawLineAA(g, cx + w * 0.3f, y0, cx + w * 0.3f, y1, lw, ink);
+    } else {   // SINE
+        const int n = 16;
+        for (int i = 0; i < n; ++i) {
+            const float a = static_cast<float>(i) / n, b = static_cast<float>(i + 1) / n;
+            drawLineAA(g, cx - w * 0.5f + a * w, 0.5f * (y0 + y1) - 0.5f * cap * std::sin(a * 6.2831853f),
+                       cx - w * 0.5f + b * w, 0.5f * (y0 + y1) - 0.5f * cap * std::sin(b * 6.2831853f), lw, ink);
+        }
+    }
+}
+
+// A control name: shrunk to fit maxW, "~SQ"-style waveform symbols, "RES_H" with a subscript.
+void nameLabel(Graphics& g, const char* text, float cx, float capTop, float maxW, float cap = kLabelCap, uint32_t ink = kSilk) {
+    if (!text || !*text) return;
+    if (text[0] == '~') { waveSymbol(g, text + 1, cx, capTop, cap, ink); return; }
+    char main[32];
+    const char* sub = std::strchr(text, '_');
+    const size_t n = sub ? static_cast<size_t>(sub - text) : std::strlen(text);
+    std::snprintf(main, sizeof main, "%.*s", static_cast<int>(n), text);
+    const float subCap = cap * 0.7f;
+    auto width = [&](float c) { return textWidth(kLabelFont, main, c) + (sub ? 1.f + textWidth(kLabelFont, sub + 1, c * 0.7f) : 0.f); };
+    while (cap > 4.f && width(cap) > maxW) cap -= 0.25f;
+    const float w = width(cap);
+    drawText(g, kLabelFont, main, cx - w * 0.5f, capTop, cap, ink, 0.08f);
+    if (sub) drawText(g, kLabelFont, sub + 1, cx - w * 0.5f + textWidth(kLabelFont, main, cap) + 1.f, capTop + cap * 0.55f,
+                      subCap * cap / kLabelCap, ink, 0.08f);
+}
+
 void fillRect(Graphics& g, float x0, float y0, float x1, float y1, uint32_t argb) {
     shadeBox(g, x0, y0, x1, y1, [argb](float, float) { return argb; });
 }
@@ -201,20 +238,29 @@ void drawStatic(Graphics& g, const PanelLayout& L) {
             case CtlType::Paddle: {
                 float sx, top, bottom;
                 sliderGeometry(c, sx, top, bottom);
-                label(g, c.label, cx, c.y - 13.f);
+                const float nameW = c.nameY ? 42.f : 33.f;
+                nameLabel(g, c.label, cx, c.nameY ? static_cast<float>(c.nameY) : c.y - 13.f, nameW);
                 drawTicks(g, c.x + 3.f, top, bottom, isBipolar(c.param));
                 drawSlot(g, sx, top - 3.f, bottom + 3.f, c.type == CtlType::Slider ? 5.f : 7.f);
                 if (c.type == CtlType::Paddle) {
-                    // Reversed scale: the hardware's paddles grow toward the player.
-                    drawText(g, kLabelFont, "0", c.x + c.w - 4.f, top - 2.f, 4.5f, kSilkDim);
+                    // Reversed scale: the hardware's paddles grow toward the player. The top
+                    // legend replaces the "0" mark; the bottom one is printed under the slot.
+                    drawText(g, kLabelFont, c.top ? c.top : "0", c.x + c.w - 4.f, top - 2.f, 4.5f, kSilkDim);
+                    if (c.bottom) label(g, c.bottom, cx, bottom + 7.f, 4.5f, kSilkDim);
+                } else {
+                    if (c.top) label(g, c.top, cx, c.y - 6.f, 4.5f, kSilkDim);
+                    if (c.bottom) label(g, c.bottom, cx, c.y + c.h + 1.f, 4.5f, kSilkDim);
                 }
                 break;
             }
             case CtlType::Rocker:
-                label(g, c.label, cx, c.y - 13.f);
+                if (c.nameY) nameLabel(g, c.label, cx, static_cast<float>(c.nameY), 42.f);
+                else nameLabel(g, c.label, cx, c.y - 13.f - (c.top ? 6.f : 0.f), 34.f);
                 roundRect(g, c.x - 2.f, c.y - 2.f, c.x + c.w + 2.f, c.y + c.h + 2.f, 3.f,
                           [](float, float, float) { return 0xFF050506u; });
-                drawText(g, kLabelFont, "ON", cx - 4.f, c.y + c.h + 5.f, 4.5f, kSilkDim);
+                if (c.top) label(g, c.top, cx, c.y - 10.f, 4.5f, kSilkDim);
+                if (c.bottom) label(g, c.bottom, cx, c.y + c.h + 5.f, 4.5f, kSilkDim);
+                else if (!c.top) label(g, "ON", cx, c.y + c.h + 5.f, 4.5f, kSilkDim);
                 break;
             case CtlType::Lever: {
                 label(g, c.label, cx, c.y - 13.f);
@@ -230,6 +276,7 @@ void drawStatic(Graphics& g, const PanelLayout& L) {
             default: break;
         }
     }
+    for (const Caption& k : L.captions) label(g, k.text, k.x, k.y, k.cap, k.cap < 5.f ? kSilkDim : kSilk);
     // The YAMAHA-style name board above the keyboard is the ribbon; print a
     // small credit under the tone selector.
     label(g, "SOFTWARE TONE SELECTOR - CLICK THE DISPLAY FOR PRESETS", 618.f, L.middleTop + 143.f, 4.6f, kSilkDim);

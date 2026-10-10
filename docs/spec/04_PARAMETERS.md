@@ -108,6 +108,28 @@ presets were remapped on 2026-10-09 so they keep the times they had under the ea
 
 ## Value display
 
-Times are shown in ms/s via the doc 02/03 time laws (envelope times follow the Long mode),
-rates (PWM, sub-osc, ring-mod speed) in Hz, cutoffs in volts, feet as 16′…2′, switches
-as On/Off, bipolar controls with sign.
+Values are shown in the circuit's units, like the Arturia CS-80 V manual lists them, and text
+typed in the same units is parsed back (`paramTextToValue`, inverse by bisection; test T21).
+The GUI header readout and the host both use this text.
+
+| Controls | Shown as | Law (spec) |
+| --- | --- | --- |
+| VCF/VCA/ring-mod/sustain times | ms / s | 02 §5/§6, 03 §8/§9; envelope times follow the Long mode |
+| PWM, sub-osc, ring-mod speed | Hz | 03 §3/§4/§9 |
+| HPF, LPF | Hz **at C4** (the cutoff follows the key): LPF 20 Hz…4 kHz, HPF 20 Hz…1.88 kHz | 02 §4; Arturia's 37 Hz–22.3 kHz / 26.8 Hz–16.2 kHz are a different, untracked law (plan P-3) |
+| Res H, Res L | Q 0.50…5.00 (`0.5·10^x`, the low-frequency Q) | 02 §4 |
+| IL, AL | 0…−5.00 V, 0…+5.00 V | 02 §5 |
+| PW, PWM | 50…90 %, ±0…40 % | 02 §2 |
+| Detune | +0…12 Hz | 02 §1 |
+| Mix, global Resonance | −1.00…+1.00 (Mix −1 = line I only) | 03 §7 |
+| Brilliance, keyboard brilliance, sub-osc VCF | ±4 V, ±3 V, ±5 V | 03 §3/§6/§7 |
+| Sub-osc VCO, touch pitch bend, ribbon | semitones (±12, −2, ±12) | 03 §3/§5/§7 |
+| Sub-osc VCA, ring-mod modulation | % | 03 §3/§9 |
+| Keyboard level | dB (−14…+5.1) | 03 §6 |
+| Ring-mod depth | +0…205 Hz (sweep added by the envelope) | 03 §9 |
+| Porta time | ms per semitone, Off at 0 | 03 §2 |
+| Chorus/trem speed | chorus rate Hz (tremolo runs at 0.5·20^x Hz) | 03 §11 |
+| Volume, Patch Gain | dB | 03 §13 |
+| Reverb pre-delay | 0…150 ms | 03 §12 |
+| Other sliders (noise, levels, sustain, touch amounts, depths) | 0…10, the hardware scale | — |
+| Feet, Function, modes, switches | their names (16′…2′, Sine…, I/II, On/Off) | — |

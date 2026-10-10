@@ -27,6 +27,7 @@ failing low level invalidates everything above it.
 | T18 | Nonlinear filter (OtaSvf) | amplitude 0.001: gain at fc = Q (±3 %), H3 < −80 dBc; amplitude 1 (V 1.2): peak < 0.7× the small-signal gain, H3 > −40 dBc |
 | T19 | VCO jitter | Drift 0: none; Drift 1: rms 5·10⁻⁴ × card factor (0.6–1.4 × 5·10⁻⁴) |
 | T20 | 4× mode | filtered chord level within 0.5 dB of 2×, finite |
+| T21 | Value text | every parameter's shown value (Hz at C4, Q, V, %, st, dB, ms, names) parses back to its position, both envelope modes |
 
 ## 2. GUI (`tannhauser_gui_test`)
 

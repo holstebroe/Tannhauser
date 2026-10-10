@@ -92,6 +92,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 3.4 | Host gestures for GUI edits and preset loads | ✅ |
 | 3.5 | CLAP voice-info / note-end events (polyphonic modulation) | ⬜ |
 | 3.6 | MPE (per-note pitch/timbre as ribbon/brilliance) | ⬜ |
+| 3.7 | Values shown in circuit units (Hz at C4, Q, V, %, st, dB, ms) and parsed back (spec 04, T21) | ✅ |
 
 ### WP4 — Presets (spec 05)
 | ID | Issue | Status |
@@ -113,11 +114,12 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 5.3 | Tooltip/value readout in the header | ✅ |
 | 5.4 | Ribbon strip and clickable keyboard | ✅ |
 | 5.5 | HiDPI scaling (CLAP `set_scale`), resizable window | ⬜ |
+| 5.6 | CS-80 printing: names under the programming sliders, scale-end legends, RES H/L, VCF LEVEL, waveform symbols, keyboard-control/touch captions, cap colours from photos; sustain/porta time as LONG/SHORT sliders | ✅ |
 
 ### WP6 — Validation (spec 07)
 | ID | Issue | Status |
 | --- | --- | --- |
-| 6.1 | `tannhauser_dsp_test` T1–T13, T15–T20 (T14 is in the GUI test) | 🟡 T4 checks only "no self-oscillation", not the peak-gain-vs-cutoff curve; T13 checks RMS, not f0 |
+| 6.1 | `tannhauser_dsp_test` T1–T13, T15–T21 (T14 is in the GUI test) | 🟡 T4 checks only "no self-oscillation", not the peak-gain-vs-cutoff curve; T13 checks RMS, not f0 |
 | 6.2 | `tannhauser_gui_test` offscreen render + interaction | ✅ |
 | 6.3 | `tannhauser_render` offline WAV renderer | ✅ |
 | 6.4 | Reference-audio calibration loop (Acidus-style fit tools) | 🔬 |
@@ -184,5 +186,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
   4-point B-spline BLEP (1.15; aliasing ≤ −80 dB at 2×), 4× switch `os.4x` (1.10, param 97),
   CPU work (1.12 partial: −17 % instructions, real-time factor ~0.13). Tests T17–T20; presets
   loudness-refitted (median −1.3 dB). 1.11 left for scope data. dsp test 267 checks.
+- 2026-10-10 — Value display in circuit units like the Arturia manual (3.7, T21); panel
+  printing and cap colours from photos of the CS-80 (5.6): duplicate RES/LEVEL names fixed.
 - Next suggested steps: P-1 confirmation with a reference recording; 1.5 nonlinear SVF;
   1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

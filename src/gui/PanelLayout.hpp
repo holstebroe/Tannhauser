@@ -31,6 +31,19 @@ struct Ctl {
     uint32_t cap;         // cap colour (ARGB)
     int aux;              // type-specific (lever steps, tone button id)
     const char* const* stepLabels;   // Lever: one label per step
+    // Printed legends at the scale ends (the hardware's "FAST"/"SLOW", "10"/"0"...)
+    // and the name's baseline row (0 = name above the control). A name starting
+    // with '~' is a waveform symbol (~SQ, ~SAW, ~SINE); "RES_H" prints H as a subscript.
+    const char* top = nullptr;
+    const char* bottom = nullptr;
+    int nameY = 0;
+};
+
+// Free silk-screen text (group captions such as "BRILLIANCE" over a LOW/HIGH pair).
+struct Caption {
+    float x, y;            // centre x, cap top
+    const char* text;
+    float cap;
 };
 
 struct Frame {
@@ -47,6 +60,7 @@ struct PanelLayout {
     static constexpr int kKeyboardLast = 96;
     std::vector<Ctl> controls;
     std::vector<Frame> frames;
+    std::vector<Caption> captions;
     int rowTop[2]{};               // programming rows
     int middleTop = 0, middleH = 0;
     int bottomTop = 0;

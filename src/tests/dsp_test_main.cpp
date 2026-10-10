@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 using namespace tannhauser;
@@ -506,6 +507,30 @@ static void testOversamplingModes() {
     }
 }
 
+static void testValueText() {
+    // T21: every parameter's displayed value (Hz at C4, Q, V, %, st, dB, times,
+    // named positions) parses back to the same slider position (spec 04).
+    for (uint32_t id = 0; id < PARAM_COUNT; ++id) {
+        const ParamInfo& p = paramInfo(id);
+        for (double f : { 0.0, 0.25, 0.5, 0.75, 1.0 }) {
+            double x = p.min + f * (p.max - p.min);
+            if (p.flags & PF_STEPPED) x = std::round(x);
+            for (bool longEnv : { false, true }) {
+                char buf[64];
+                paramValueText(id, x, buf, sizeof buf, longEnv);
+                double back = -99.0;
+                const bool ok = paramTextToValue(id, buf, &back, longEnv) && std::fabs(back - x) < 0.02 * (p.max - p.min) + 1e-9;
+                CHECK(ok, "T21 %s: '%s' parses to %.4f, want %.4f", p.name, buf, back, x);
+            }
+        }
+    }
+    char buf[64];
+    paramValueText(lineParam(0, LP_LPF), 0.5, buf, sizeof buf);
+    CHECK(std::strcmp(buf, "2.00 kHz at C4") == 0, "T21 LPF 0.5 shows '%s' want '2.00 kHz at C4'", buf);
+    paramValueText(lineParam(0, LP_RES_L), 1.0, buf, sizeof buf);
+    CHECK(std::strcmp(buf, "Q 5.00") == 0, "T21 Res L 1 shows '%s' want 'Q 5.00'", buf);
+}
+
 static void testCpu() {
     // T15: 8 voices (16 lines), 48 kHz.
     const int sr = 48000;
@@ -547,6 +572,7 @@ int main() {
     testNonlinearFilter();
     testJitter();
     testOversamplingModes();
+    testValueText();
     testCpu();
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;

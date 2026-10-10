@@ -334,28 +334,7 @@ bool TannhauserClap::paramsValueToText(clap_id id, double value, char* buf, uint
 }
 
 bool TannhauserClap::paramsTextToValue(clap_id id, const char* text, double* out) const {
-    if (id >= PARAM_COUNT || !text || !out) return false;
-    const ParamInfo& p = paramInfo(id);
-    if (p.unit == ParamUnit::Switch) {
-        *out = (std::strstr(text, "On") || std::strstr(text, "on") || std::atof(text) >= 0.5) ? 1.0 : 0.0;
-        return true;
-    }
-    char* end = nullptr;
-    double v = std::strtod(text, &end);
-    if (end == text || !std::isfinite(v)) return false;
-    // Plain sliders are shown 0..10, bipolar -10..+10.
-    if (p.unit == ParamUnit::Plain || p.unit == ParamUnit::Bipolar) v /= 10.0;
-    if (p.unit == ParamUnit::Percent) v /= 100.0;
-    if (p.unit == ParamUnit::Time) {
-        double sec = v;
-        if (std::strstr(text, "ms")) sec = v / 1000.0;
-        TimeLaw law = TimeLaw::Sustain;
-        paramTimeLaw(id, &law);
-        v = timePos(law, sec, values_[P_ENV_LONG].load(std::memory_order_relaxed) >= 0.5);
-    }
-    if (p.unit == ParamUnit::Hertz) v = paramRatePos(id, v);
-    *out = clampParam(id, v);
-    return true;
+    return paramTextToValue(id, text, out, values_[P_ENV_LONG].load(std::memory_order_relaxed) >= 0.5);
 }
 
 void TannhauserClap::paramsFlush(const clap_input_events_t* in, const clap_output_events_t* out) {

@@ -116,6 +116,7 @@ enum class ParamUnit : uint8_t {
     PortaMode,
     Bipolar,      // -1..1 shown as -10..+10
     Decibel,
+    Physical,     // circuit value: Hz at C4, Q, V, %, st, dB ... (spec 04 "Value display")
 };
 
 struct ParamInfo {
@@ -134,6 +135,8 @@ int paramIdFromKey(const char* key);
 // the envelope time ranges shown).
 void paramValueText(uint32_t id, double value, char* buf, size_t cap, bool longEnv = false);
 double clampParam(uint32_t id, double v);
+// Parses a value typed in the units paramValueText shows (the inverse mapping).
+bool paramTextToValue(uint32_t id, const char* text, double* out, bool longEnv = false);
 
 // Time laws shared by the DSP and the value display (spec 02 §5/§6, 03 §8/§9):
 // T = tmin * (tmax/tmin)^pos, ranges per control.
