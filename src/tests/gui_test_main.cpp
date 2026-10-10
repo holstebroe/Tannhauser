@@ -142,6 +142,18 @@ int main(int argc, char** argv) {
         CHECK(p.paramValue(static_cast<clap_id>(c.param)) != before, "rocker did not toggle");
     }
 
+    // Ribbon Hold key toggles its parameter.
+    for (const Ctl& c : L.controls) {
+        if (c.type != CtlType::Toggle) continue;
+        const double before = p.paramValue(static_cast<clap_id>(c.param));
+        gui.handleMouseDown(c.x + c.w / 2, c.y + c.h / 2, false);
+        gui.handleMouseUp();
+        CHECK(p.paramValue(static_cast<clap_id>(c.param)) != before, "toggle %s did not toggle", c.label);
+        gui.handleMouseDown(c.x + c.w / 2, c.y + c.h / 2, false);
+        gui.handleMouseUp();
+        CHECK(p.paramValue(static_cast<clap_id>(c.param)) == before, "toggle %s did not toggle back", c.label);
+    }
+
     // Preset menu: open, pick the second category's first preset.
     for (const Ctl& c : L.controls) {
         if (c.type != CtlType::PresetLcd) continue;

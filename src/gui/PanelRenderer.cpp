@@ -259,6 +259,10 @@ void drawStatic(Graphics& g, const PanelLayout& L) {
                 if (c.bottom) label(g, c.bottom, cx, c.y + c.h + 5.f, 4.5f, kSilkDim);
                 else if (!c.top) label(g, "ON", cx, c.y + c.h + 5.f, 4.5f, kSilkDim);
                 break;
+            case CtlType::Toggle:   // the letter is part of the key (dynamic layer)
+                roundRect(g, c.x - 2.f, c.y - 2.f, c.x + c.w + 2.f, c.y + c.h + 2.f, 3.f,
+                          [](float, float, float) { return 0xFF050506u; });
+                break;
             case CtlType::Lever: {
                 label(g, c.label, cx, c.y - 13.f);
                 const float slotX = c.x + 7.f;
@@ -304,7 +308,7 @@ float nameWidth(const char* text) {
 float nameRoom(const Ctl& c) {
     // Column pitch minus a small gap: programming rows 44, paddle groups 34, rockers 36;
     // a lever has its own width.
-    if (c.type == CtlType::Lever) return static_cast<float>(c.w);
+    if (c.type == CtlType::Lever || c.type == CtlType::Toggle) return static_cast<float>(c.w);
     if (c.nameY) return 42.f;
     return c.type == CtlType::Rocker ? 33.f : 31.f;
 }
@@ -371,6 +375,22 @@ static void drawRockerKey(Graphics& g, const Ctl& c, const CtlState& st) {
             return toArgb({ 1.0f, 0.22f, 0.12f }, clamp01(1.25f - dd / 3.f));
         });
     }
+}
+
+// Small square key with its letter lit green when on (Ribbon Hold "H").
+static void drawToggle(Graphics& g, const Ctl& c, const CtlState& st) {
+    const float x0 = c.x + 1.f, y0 = c.y + 1.f, x1 = c.x + c.w - 1.f, y1 = c.y + c.h - 1.f;
+    const Color capC = fromArgb(c.cap);
+    roundRect(g, x0, y0, x1, y1, 2.5f, [&](float u, float v, float d) {
+        float k = st.on ? 0.75f - 0.1f * v : 1.15f - 0.2f * v;   // pressed in when on
+        const float rim = smoothstep(-1.2f, 0.f, d);
+        Color col = scale(capC, k);
+        col = mix(col, scale(col, (u < 0) == !st.on ? 1.4f : 0.6f), rim * 0.6f);
+        if (st.hover) col = scale(col, 1.1f);
+        return toArgb(col, 1.f);
+    });
+    drawTextCentered(g, kLabelFont, c.label, c.x + c.w * 0.5f, c.y + c.h * 0.5f - 3.5f, 7.f,
+                     st.on ? 0xFF7DF29A : 0xC0A8AAA6, 0.08f);
 }
 
 static void drawLever(Graphics& g, const Ctl& c, const CtlState& st) {
@@ -543,6 +563,7 @@ void drawControl(Graphics& g, const Ctl& c, const CtlState& st) {
         case CtlType::Slider:
         case CtlType::Paddle: drawSliderCap(g, c, st); break;
         case CtlType::Rocker: drawRockerKey(g, c, st); break;
+        case CtlType::Toggle: drawToggle(g, c, st); break;
         case CtlType::Lever: drawLever(g, c, st); break;
         case CtlType::Knob: drawKnob(g, c, st); break;
         case CtlType::ToneButton: drawToneButton(g, c, st); break;

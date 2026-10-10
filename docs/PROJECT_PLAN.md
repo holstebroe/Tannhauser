@@ -74,7 +74,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2.5 | Initial pitch-bend scoop | ✅ |
 | 2.6 | Keyboard control brilliance/level (KBC) | ✅ |
 | 2.7 | Ribbon (relative), MIDI bend, master pitch, detune, mix, brilliance, resonance | ✅ |
-| 2.16 | Ribbon Hold [A] (default on): bent notes keep their pitch on release, new notes unbent; Hold off = CS-80 return (03 §7, T22) | ✅ |
+| 2.16 | Ribbon Hold [A] (default on, "H" key left of the ribbon): bent notes keep their pitch on release, new notes unbent; Hold off = CS-80 return (03 §7, T22) | ✅ |
 | 2.8 | Sustain I/II, sustain time, pedal | ✅ |
 | 2.9 | Ring modulator with monophonic AD envelope | ✅ |
 | 2.10 | Chorus/tremolo (BBD-style, option A) | 🟡 values are defaults; OE1/OE2 pages unread |

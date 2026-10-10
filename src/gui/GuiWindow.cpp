@@ -41,6 +41,7 @@ void margins(const Ctl& c, int& mx, int& my) {
         case CtlType::Knob: mx = 8; my = 8; break;
         case CtlType::Lever: mx = 3; my = 3; break;
         case CtlType::Rocker: mx = 2; my = 2; break;
+        case CtlType::Toggle: mx = 2; my = 2; break;
         case CtlType::ToneButton: mx = 1; my = 1; break;
         case CtlType::Keyboard: mx = 0; my = 0; break;
         default: mx = 2; my = 2; break;
@@ -74,7 +75,8 @@ CtlState GuiWindow::stateFor(int i) const {
     const double v = (c.param >= 0 && plugin_) ? plugin_->paramValue(static_cast<clap_id>(c.param)) : 0.0;
     switch (c.type) {
         case CtlType::Slider: case CtlType::Paddle: case CtlType::Knob: s.norm = paramNorm(c.param); break;
-        case CtlType::Rocker: s.on = v >= 0.5; break;
+        case CtlType::Rocker:
+        case CtlType::Toggle: s.on = v >= 0.5; break;
         case CtlType::Lever: s.step = static_cast<int>(std::lround(v)); break;
         case CtlType::ToneButton: {
             const int row = c.aux / 16, b = c.aux % 16;
@@ -346,6 +348,7 @@ void GuiWindow::handleMouseDown(int x, int y, bool shift) {
             }
             break;
         case CtlType::Rocker:
+        case CtlType::Toggle:
             if (plugin_) setParamFromGui(c.param, plugin_->paramValue(static_cast<clap_id>(c.param)) >= 0.5 ? 0.0 : 1.0, true);
             break;
         case CtlType::Lever: {

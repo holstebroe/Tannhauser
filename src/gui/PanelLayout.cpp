@@ -165,7 +165,9 @@ PanelLayout build() {
     }
     // Long envelope mode [A] (spec 02 §5/§6).
     L.controls.push_back({ CtlType::Rocker, P_ENV_LONG, 574, bt + 52, 20, 40, "LONG", kCapBlack, 0, nullptr });
-    L.controls.push_back({ CtlType::Ribbon, P_RIBBON, 620, bt + 6, 716, 20, "RIBBON", 0, 0, nullptr });
+    // Ribbon Hold [A]: a small lit "H" key left of the ribbon (spec 03 §7).
+    L.controls.push_back({ CtlType::Toggle, P_RIBBON_HOLD, 620, bt + 6, 20, 20, "H", kCapBlack, 0, nullptr });
+    L.controls.push_back({ CtlType::Ribbon, P_RIBBON, 646, bt + 6, 690, 20, "RIBBON", 0, 0, nullptr });
     L.controls.push_back({ CtlType::Keyboard, -1, 620, bt + 32, 716, 118, "", 0, 0, nullptr });
     return L;
 }

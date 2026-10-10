@@ -13,6 +13,7 @@ enum class CtlType {
     Slider,       // programming slider (up = more)
     Paddle,       // performance paddle (pulled down = more, as on the hardware)
     Rocker,       // on/off rocker (down = on)
+    Toggle,       // small square key with a lit letter (the label), click toggles
     Lever,        // stepped selector, `steps` positions listed top to bottom
     Knob,
     ToneButton,   // aux = row * 16 + button (0..13)

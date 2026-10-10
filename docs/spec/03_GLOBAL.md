@@ -63,7 +63,7 @@ neutral at the centre: `t < 0.5: low·(1 − 2t)`, else `high·(2t − 1)`. Bril
   (`ribbon.touch`, set by the GUI) every sounding voice follows it from the bend it already
   has; on release the voices keep their bend until they are re-struck or stolen. A note struck
   later starts unbent (one struck during a touch follows the ribbon from that moment). Hold off
-  = the hardware's return to pitch. A ribbon value written without a touch (host automation)
+  = the hardware's return to pitch. Panel: the lit "H" key left of the ribbon. A ribbon value written without a touch (host automation)
   bends every voice globally and is not held. Bends are smoothed ~2 ms. Test T22.
   GUI: a drag strip above the keyboard area. MIDI pitch bend is an added equivalent with
   **Bend Range** (default 2 semitones) [A].

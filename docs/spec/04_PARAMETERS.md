@@ -88,7 +88,7 @@ Flags: **S** = stored in software presets (patch); **P** = performance-only (not
 | 96 | env.long | Long Envelopes [A] | 0/1, 0 | S T | — (spec 02 §5: filter/VCA envelope times to 10/25/40 s) |
 | 97 | os.4x | 4x Oversampling [A] | 0/1, 0 | P T | — (spec 01 §3; host/automation only, no panel control) |
 | 98 | ribbon.touch | Ribbon Touch | 0/1, 0 | P T | ribbon contact (GUI), spec 03 §7 |
-| 99 | ribbon.hold | Ribbon Hold [A] | 0/1, 1 | P T | — (bent notes keep the ribbon pitch on release) |
+| 99 | ribbon.hold | Ribbon Hold [A] | 0/1, 1 | P T | "H" key left of the ribbon (bent notes keep the ribbon pitch on release) |
 
 Count: 100 (`PARAM_COUNT`).
 
