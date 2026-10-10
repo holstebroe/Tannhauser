@@ -13,8 +13,8 @@ the acoustic metrics of §3.
 | 224X | BlueBox core with the V8.1 ROMs: needs the V8.1 entry points / program-select hook | open (TW1.4) |
 | 224 | new machine model: 224 microword layout, 20 kHz, 16 K DMEM, V4.4 8080 I/O and remote head; same ARU/FPC | open (TW1.5) |
 
-Setup (fetches BlueBox at a pinned commit into `build/ext/`, installs the ROM images from
-`training/lex/` into `build/ext/roms/`, builds `tearwash_oracle`, renders the set):
+Setup (fetches BlueBox at a pinned commit into `build/ext/`, installs the ROM images from the
+user-supplied zip in the git-ignored `training/lex/` into `build/ext/roms/` (`tools/oracle/README.md`), builds `tearwash_oracle`, renders the set):
 
 ```
 tools/oracle/setup_bluebox.sh                      # → build/oracle/xl/{index.tsv, *.wav}

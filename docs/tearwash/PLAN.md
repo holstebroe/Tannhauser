@@ -192,3 +192,6 @@ excitations.
   aligned to it, clean converters [A], text state; procedural panel with flavour switch,
   program buttons, six faders, space knobs, options, level knobs, LED display and headroom
   meter. `tearwash_gui_test` 96 checks.
+- 2026-10-10 — The user's ROM images and ROM-derived tables (`training/lex/`) removed from the
+  branch history; `training/lex/` is git-ignored and the zip is supplied per session
+  (`tools/oracle/README.md`). `tools/oracle/capture_all.sh` regenerates the 19 W2b captures.

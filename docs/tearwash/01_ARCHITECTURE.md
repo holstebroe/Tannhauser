@@ -97,7 +97,8 @@ arithmetic), the 225 flavour.
 
 ## 7. ROM and BlueBox rules (IP)
 
-- ROM images live only in `training/lex/` (user-supplied) and are used **only as a reference**:
+- ROM images are not in the repository. The user supplies them as a zip in the git-ignored
+  `training/lex/` for a comparison session (`tools/oracle/README.md`). They are used **only as a reference**:
   by the out-of-tree oracle and by analysis tools. They are never copied into `src/`, never
   embedded in a plugin, never loaded at runtime, and no ROM byte tables are committed.
 - BlueBox has no licence: it is fetched and built under `build/` (git-ignored) by

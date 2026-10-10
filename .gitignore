@@ -19,6 +19,8 @@ CMakeUserPresets.json
 #cmake-build-*
 
 build/
+# User-supplied Lexicon ROM images (proprietary, reference only; tools/oracle/README.md)
+training/lex/
 *.wav
 *.ppm
 __pycache__/
