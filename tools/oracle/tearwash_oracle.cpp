@@ -7,6 +7,13 @@
 //
 // usage: tearwash_oracle --rom-dir DIR --set FILE --out DIR [--rate HZ] [--only ID]
 //        tearwash_oracle --rom-dir DIR --list
+//        tearwash_oracle --rom-dir DIR --capture PROGRAM_ID_HEX FRAMES OUT.bin
+//
+// --capture boots a program with MODE ENH, DECAY OPT and DYN DECAY forced off (so the 8080
+// leaves the DSP program alone), snapshots the whole DSP state at a sample boundary, then runs
+// FRAMES samples of a deterministic input at the DSP rate and records the DAC words. The file
+// feeds tearwash_core_test's bit-exact check of the native networks (docs/tearwash/04 §5 W2).
+// It contains the loaded program image, so it stays under build/.
 //
 // Set file: one case per line, '#' comments:
 //   ID  PROGRAM  STIMULUS  SECONDS  [P.S=HH ...]  [opt=MASK:BITS]
@@ -36,6 +43,87 @@
 using namespace tearwash;
 
 namespace {
+
+// Machine with access to the DSP state (its members are protected for subclasses).
+class ProbeMachine : public Machine {
+public:
+    Dsp& core() { return dsp; }
+};
+
+// Deterministic DSP-rate input: noise bursts and a quiet spell, different in L and R.
+struct CaptureIo final : SampleIo {
+    std::vector<int16_t> inL, inR;
+    std::vector<DacFrame> out;
+    size_t next = 0;
+    bool nextInput(int16_t& l, int16_t& r) override {
+        if (next >= inL.size()) { l = r = 0; return true; }
+        l = inL[next]; r = inR[next]; ++next;
+        return true;
+    }
+    void frame(const DacFrame& d) override { out.push_back(d); }
+};
+
+void put16(FILE* f, uint16_t v) { std::fputc(v & 0xFF, f); std::fputc(v >> 8, f); }
+void put32(FILE* f, uint32_t v) { put16(f, uint16_t(v)); put16(f, uint16_t(v >> 16)); }
+
+int capture(const RomImage& roms, unsigned id, size_t frames, const std::string& path) {
+    static int16_t dmem[65536];
+    static ProbeMachine m;
+    m.reset(roms, dmem);
+    m.setBootOptions(Machine::kOptModeEnh | Machine::kOptDecayOpt | Machine::kOptDynDecay, 0);
+    const char* err = nullptr;
+    if (!m.boot(static_cast<uint8_t>(id), &err)) { std::fprintf(stderr, "boot: %s\n", err); return 1; }
+    CaptureIo io;
+    io.inL.assign(1, 0); io.inR.assign(1, 0);
+    m.run(1, io);                          // land on a sample boundary
+    io.inL.clear(); io.inR.clear(); io.out.clear(); io.next = 0;
+    uint64_t x = 0x7EA2A5225ull;
+    for (size_t i = 0; i < frames; ++i) {
+        x ^= x >> 12; x ^= x << 25; x ^= x >> 27;
+        const uint64_t r = x * 0x2545F4914F6CDD1Dull;
+        const bool loud = (i % 8000) < 2000;
+        const int amp = loud ? 6000 : 300;
+        io.inL.push_back(int16_t(int(int16_t(r >> 48)) * amp / 32768));
+        io.inR.push_back(int16_t(int(int16_t(r >> 32)) * amp / 32768));
+    }
+    Dsp& d = m.core();
+    uint8_t wcs0[512];
+    std::copy(d.wcs, d.wcs + 512, wcs0);
+    FILE* f = std::fopen(path.c_str(), "wb");
+    if (!f) { std::fprintf(stderr, "cannot write %s\n", path.c_str()); return 1; }
+    std::fwrite("TWCAP001", 1, 8, f);
+    put32(f, uint32_t(m.loopLen));
+    std::fwrite(d.wcs, 1, 512, f);
+    for (int k = 0; k < 4; ++k) put16(f, uint16_t(d.reg[k]));
+    put16(f, uint16_t(d.result));
+    put32(f, uint32_t(d.acc));
+    put16(f, d.pos);
+    for (int k = 0; k < 65536; ++k) put16(f, uint16_t(dmem[k]));
+    // Memory snapshots every 100 frames over the first 2100, for locating divergences.
+    const size_t first = std::min<size_t>(frames, 2100);
+    std::vector<std::vector<int16_t>> snaps;
+    std::vector<uint16_t> snapPos;
+    for (size_t i = 0; i < first; i += 100) {
+        m.run(100, io);
+        snaps.emplace_back(dmem, dmem + 65536);
+        snapPos.push_back(d.pos);
+    }
+    if (frames > io.out.size()) m.run(frames - io.out.size(), io);
+    const bool same = std::equal(wcs0, wcs0 + 512, d.wcs);
+    put32(f, uint32_t(frames));
+    for (size_t i = 0; i < frames; ++i) { put16(f, uint16_t(io.inL[i])); put16(f, uint16_t(io.inR[i])); }
+    put32(f, uint32_t(io.out.size()));
+    for (const auto& fr : io.out) for (int k = 0; k < 4; ++k) put16(f, uint16_t(fr[k]));
+    put32(f, uint32_t(snaps.size()));
+    for (size_t k = 0; k < snaps.size(); ++k) {
+        put16(f, snapPos[k]);
+        for (int w = 0; w < 65536; ++w) put16(f, uint16_t(snaps[k][size_t(w)]));
+    }
+    std::fclose(f);
+    std::fprintf(stderr, "program %02X loop %d: %zu frames, %zu DAC frames, program %s during the run\n", id, m.loopLen,
+                 frames, io.out.size(), same ? "unchanged" : "CHANGED");
+    return 0;
+}
 
 struct Move { int page, slider; unsigned pos; };
 
@@ -81,7 +169,9 @@ std::string sliderHex(const uint8_t (&v)[12][6]) {
 }  // namespace
 
 int main(int argc, char** argv) {
-    std::string romDir, setFile, outDir, only;
+    std::string romDir, setFile, outDir, only, capturePath;
+    unsigned captureId = 0;
+    size_t captureFrames = 0;
     unsigned rate = 48000;
     bool list = false;
     for (int i = 1; i < argc; ++i) {
@@ -92,9 +182,14 @@ int main(int argc, char** argv) {
         else if (a == "--rate" && i + 1 < argc) rate = static_cast<unsigned>(std::atoi(argv[++i]));
         else if (a == "--only" && i + 1 < argc) only = argv[++i];
         else if (a == "--list") list = true;
+        else if (a == "--capture" && i + 3 < argc) {
+            captureId = static_cast<unsigned>(std::strtoul(argv[++i], nullptr, 16));
+            captureFrames = static_cast<size_t>(std::atol(argv[++i]));
+            capturePath = argv[++i];
+        }
         else { std::fprintf(stderr, "unknown argument %s\n", a.c_str()); return 2; }
     }
-    if (romDir.empty() || (!list && (setFile.empty() || outDir.empty()))) {
+    if (romDir.empty() || (!list && capturePath.empty() && (setFile.empty() || outDir.empty()))) {
         std::fprintf(stderr, "usage: tearwash_oracle --rom-dir DIR --set FILE --out DIR [--rate HZ] [--only ID]\n"
                              "       tearwash_oracle --rom-dir DIR --list\n");
         return 2;
@@ -104,6 +199,7 @@ int main(int argc, char** argv) {
     std::string err;
     if (!loadRomFiles(romDir, sbc, nvs, err)) { std::fprintf(stderr, "%s\n", err.c_str()); return 1; }
     const RomImage roms{ sbc, nvs };
+    if (!capturePath.empty()) return capture(roms, captureId, captureFrames, capturePath);
     ProgramList progs;
     listPrograms(roms, progs);
     if (list) {
