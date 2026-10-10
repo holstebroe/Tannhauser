@@ -105,5 +105,11 @@ The multiply-accumulate must be bit-exact (it sets the noise, limit cycles and D
   (weight 32 on the home offset). It changes the decay too: CONCERT HALL measures 2.69 s at
   1 kHz with it off, 2.52 s on [M:tw_concert_hall]. On the 224 the two
   controls are documented as "time between updates" and "step size", 1–16 each [S C§3].
+- Decay Optimisation (traced on CONCERT HALL) [R]: ramp starts ≈ 40 ms after the input drops,
+  12 steps of 1/32 at ≈ 41 ms (never below g = 1/32); the restore waits for a held peak level
+  code (3.7 s hold, then a decay whose rate falls with MID DECAY: restore 5.6 s after a burst at
+  MID 30 up to 15 s at D0, none within 40 s at F0); a louder burst restores later
+  (5.5 / 6.1 / 6.75 s at 0.01 / 0.06 / 0.3 FS). Modelled by `DecayOptimiser` [D for the code
+  scale and rate table].
 - The X/XL rates follow the 8080's own speed (wait states included); the engine models them as
   fixed update rates in core time [D], measured from the oracle.

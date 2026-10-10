@@ -50,8 +50,13 @@ public:
     void reset();
     // in: L, R; out: up to 4 channels (A, B, C, D), any may be null.
     void process(const float* inL, const float* inR, float* const* out, int n);
+    // Panel registers (03 §3): sliders through the program's laws, CHORUS → modulation speed,
+    // option 40 → Mode Enhancement. Predelay moves are ramped as on the original. Not real-time
+    // safe across a program change; safe for register changes of the current program.
+    void setControls(const XlRegs& r);
+    const XlRegs& controls() const { return regs_; }
     // Mode Enhancement (delay modulation), on by default as in the factory programs.
-    void setModeEnhancement(bool on) { modeEnh_ = on; }
+    void setModeEnhancement(bool on) { modeEnh_ = on; regs_.options = on ? (regs_.options | 0x40) : (regs_.options & ~0x40); }
     double coreRate() const { return coreRate_; }
     // Fixed latency from input to output in host samples.
     double latency() const { return latency_; }
@@ -61,7 +66,16 @@ private:
     std::unique_ptr<Program> prog_;
     CoreState state_;
     ModWalker walker_;
+    DecayOptimiser decayOpt_;
     bool modeEnh_ = true;
+    XlRegs regs_;
+    // Predelay ramp [D]: the predelayed input's gain steps to 0, the offset moves, it steps back.
+    void controlTick();
+    int rampTarget_ = 0;            // pending offsets apply when the gain reaches 0
+    uint16_t pendPreL_ = 0, pendPreR_ = 0, curPreL_ = 0, curPreR_ = 0;
+    int preGain_ = 16, preHome_ = 16;
+    bool preMoving_ = false;
+    double ctlPhase_ = 0.0, ctlInterval_ = 32.0;
     StreamResampler<2> in_;
     StreamResampler<4> out_;
     Shelf pre_[2], de_[4];

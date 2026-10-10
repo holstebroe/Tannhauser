@@ -62,9 +62,9 @@ below it passes its tests.
 ### TW5 — Control layer (03 §2–4)
 | ID | Issue | Status |
 | --- | --- | --- |
-| 5.1 | XL slider laws (MID curves, LF difference, crossover, treble/HF pairs, depth curves, predelay law + ramp, diffusion, definition, size map) | ⬜ |
-| 5.2 | Mode Enhancement walker (`ModWalker`: 980 updates/s, 1/32-sample steps, direction re-drawn every 8·N updates, window reflect, alternate taps opposite); own random source. CHORUS speed table ⬜ | 🟡 |
-| 5.3 | Level detector, Decay Optimisation, Dynamic Decay | ⬜ |
+| 5.1 | XL slider laws (`law::` in Control.hpp): CONCERT HALL pages 1, 3–6 bit-exact against five captures incl. extreme settings (W2b); predelay ramp [D]. SIZE map and the other programs' laws ⬜ | 🟡 |
+| 5.2 | Mode Enhancement walker (`ModWalker`: 980 updates/s, 1/32-sample steps, direction re-drawn every 8·N updates, window reflect, alternate taps opposite; CHORUS → divider and step); own random source | ✅ |
+| 5.3 | Decay Optimisation (`DecayOptimiser`): ramp/step/depth and MID-dependent restore traced on the original; burst case 0.9 %. Open: at MID B0/D0 after a sweep the original's RT barely changes, ours drops 8–11 % (trace with the emphasised input next). Dynamic Decay ⬜ | 🟡 |
 | 5.4 | 224 V4.4 slot laws, pot → slot assignment (Q-T6), Mode Enh / Decay Opt 1–16, the two bugs + Bug Fix [A] | ⬜ |
 | 5.5 | Display values (decay seconds as the original "approximation", Hz, ms) | ⬜ |
 
@@ -167,3 +167,10 @@ excitations.
   0.50 vs 0.49, modulation −23.5 vs −22.1 dB against the factory program (the plate: 12 %,
   1.7 dB, 0.96, 0 dB). Next: CONCERT HALL controls (TW5.1), Decay Optimisation (5.3), then
   PLATE / ROOM / CHAMBER (4.3).
+- 2026-10-10 — TW5.1/5.3 for CONCERT HALL: slider sweeps on the oracle (`--image` dumps the
+  program after firmware slider moves) gave every law of pages 1 and 3–6; the native controls
+  are bit-exact against five captures (factory, decay/crossover/treble/depth/predelay,
+  diffusion/definition/HF, pre-echoes, extremes). Decay Optimisation traced and modelled.
+  Calibration of all 38 CONCERT HALL cases: summary 3.5 % band RT, 0.6 % EDT, 0.5 dB spectrum,
+  NED 0.034, IACC 0.007, modulation −23.5/−22.1 dB; every sweep row ≤ 5 % except MID B0/D0
+  (8–11 %, Decay Optimisation interaction, open).

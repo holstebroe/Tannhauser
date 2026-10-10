@@ -24,9 +24,48 @@ void Engine::configure() {
     // 224X converter emphasis: +12 dB shelf (50 µs / 12.5 µs) and its inverse (02 §1).
     for (auto& s : pre_) s.init(fs_, 50e-6, 12.5e-6);
     for (auto& s : de_) s.init(fs_, 12.5e-6, 50e-6);
-    walker_.setup(coreRate_, prog_->modTaps());
+    walker_.setup(coreRate_, prog_->modTaps(), 980.0, 4, prog_->modSegment(), prog_->modWindow());
     for (int i = 0; i < prog_->modTaps(); ++i) walker_.setHome(i, prog_->modHome(i));
+    ctlInterval_ = coreRate_ / 1000.0;      // 1 kHz control tick
+    decayOpt_.setup(coreRate_);
+    regs_ = prog_->factory();
     reset();
+    setControls(regs_);
+}
+
+void Engine::setControls(const XlRegs& r) {
+    regs_ = r;
+    modeEnh_ = (r.options & 0x40) != 0;
+    int divider, step4;
+    law::chorus(r.at(3, 3), divider, step4);
+    walker_.setSpeed(coreRate_, 980.0 / divider, step4);
+    decayOpt_.setMid(law::step5(r.at(1, 2) > 0xF9 ? 0xF9 : r.at(1, 2)));
+    if (auto* ch = dynamic_cast<ConcertHall*>(prog_.get())) {
+        const uint16_t oldL = ch->o.preL, oldR = ch->o.preR;
+        ch->applyControls(r);
+        preHome_ = ch->c.pre;
+        // Keep the old predelay until the ramp has taken the gain to zero.
+        if (ch->o.preL != oldL || ch->o.preR != oldR) {
+            pendPreL_ = ch->o.preL; pendPreR_ = ch->o.preR;
+            ch->o.preL = oldL; ch->o.preR = oldR;
+            ch->c.pre = preGain_;
+            preMoving_ = true;
+        }
+    } else {
+        prog_->applyControls(r);
+    }
+}
+
+void Engine::controlTick() {
+    auto* ch = dynamic_cast<ConcertHall*>(prog_.get());
+    if (!ch || (!preMoving_ && preGain_ == preHome_)) return;
+    if (preMoving_) {
+        if (preGain_ > 0) --preGain_;
+        else { ch->o.preL = pendPreL_; ch->o.preR = pendPreR_; preMoving_ = false; }
+    } else if (preGain_ < preHome_) {
+        ++preGain_;
+    }
+    ch->c.pre = preGain_;
 }
 
 void Engine::reset() {
@@ -39,6 +78,11 @@ void Engine::reset() {
     head_ = count_ = 0;
     primed_ = false;
     walker_.reset();
+    decayOpt_.reset();
+    prog_->setDecayReduction(0);
+    preMoving_ = false;
+    preGain_ = preHome_;
+    ctlPhase_ = 0.0;
 }
 
 static inline int16_t toWord(float x) {
@@ -54,6 +98,9 @@ void Engine::process(const float* inL, const float* inR, float* const* out, int 
         while (in_.pull(c)) {
             state_.inL = fpcQuantize(toWord(c[0]));
             state_.inR = fpcQuantize(toWord(c[1]));
+            if ((ctlPhase_ += 1.0) >= ctlInterval_) { ctlPhase_ -= ctlInterval_; controlTick(); }
+            if (decayOpt_.tick(state_.inL, state_.inR, (regs_.options & 0x80) != 0, prog_->decayReductionMax()))
+                prog_->setDecayReduction(decayOpt_.reduction());
             if (modeEnh_ && walker_.tick())
                 for (int k = 0; k < prog_->modTaps(); ++k) {
                     uint16_t o0, o1;

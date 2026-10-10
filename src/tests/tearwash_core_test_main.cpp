@@ -6,6 +6,7 @@
 #include "tearwash/engine/Programs.hpp"
 
 #include <cstdio>
+#include <cstring>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -50,6 +51,8 @@ static void testFpc() {
 // W2b: native network vs a capture of the original program (same state, same input).
 struct Capture {
     int loop = 0;
+    bool hasRegs = false;
+    XlRegs regs;
     std::vector<int16_t> mem, inL, inR;
     std::vector<int16_t> out;   // 4 per frame
     int16_t result = 0;
@@ -71,10 +74,16 @@ static bool loadCapture(const std::string& path, Capture& c) {
     size_t p = 0;
     auto u16 = [&]() { uint16_t v = uint16_t(d[p] | (d[p + 1] << 8)); p += 2; return v; };
     auto u32 = [&]() { uint32_t lo = u16(); return lo | (uint32_t(u16()) << 16); };
-    if (d.size() < 8 || std::string(d.begin(), d.begin() + 8) != "TWCAP001") return false;
+    const std::string magic = d.size() >= 8 ? std::string(d.begin(), d.begin() + 8) : "";
+    if (magic != "TWCAP001" && magic != "TWCAP002") return false;
     p = 8;
     c.loop = int(u32());
     p += 512;                        // program image: not needed by the native network
+    if (magic == "TWCAP002") {
+        c.hasRegs = true;
+        for (int pg = 0; pg < 12; ++pg) for (int k = 0; k < 6; ++k) c.regs.page[pg][k] = d[p++];
+        c.regs.options = d[p++];
+    }
     for (int k = 0; k < 4; ++k) u16();
     c.result = int16_t(u16());
     c.acc = int32_t(u32());
@@ -127,11 +136,16 @@ static size_t compare(Program& prog, const Capture& c, int li, int lo, size_t li
     return frames;
 }
 
-static void testCapture(const char* id, Program& prog) {
+static void testCapture(const std::string& id, Program& prog) {
     Capture c;
-    const std::string path = std::string("build/capture/") + id + ".bin";
-    if (!loadCapture(path, c)) { std::printf("skip  W2b %s: no %s\n", id, path.c_str()); return; }
-    CHECK(c.loop == prog.loopLength(), "%s loop %d, network %d", id, c.loop, prog.loopLength());
+    const std::string path = "build/capture/" + id + ".bin";
+    if (!loadCapture(path, c)) { std::printf("skip  W2b %s: no %s\n", id.c_str(), path.c_str()); return; }
+    if (c.hasRegs) {
+        XlRegs r = prog.factory();
+        for (int pg = 0; pg < 12; ++pg) for (int k = 0; k < 6; ++k) r.page[pg][k] = c.regs.page[pg][k];
+        prog.applyControls(r);
+    }
+    CHECK(c.loop == prog.loopLength(), "%s loop %d, network %d", id.c_str(), c.loop, prog.loopLength());
     int bestLi = 0, bestLo = 0;
     size_t best = 0;
     for (int li = -2; li <= 2; ++li)
@@ -142,9 +156,9 @@ static void testCapture(const char* id, Program& prog) {
     std::string why;
     const size_t frames = c.out.size() / 4;
     const size_t m = compare(prog, c, bestLi, bestLo, frames, &why);
-    CHECK(m == frames, "%s bit-exact for %zu of %zu frames (input lag %d, output lag %d): %s", id, m, frames, bestLi,
-          bestLo, why.c_str());
-    if (m == frames) std::printf("ok    W2b %s bit-exact over %zu frames (lags %d/%d)\n", id, frames, bestLi, bestLo);
+    CHECK(m == frames, "%s bit-exact for %zu of %zu frames (input lag %d, output lag %d): %s", id.c_str(), m, frames,
+          bestLi, bestLo, why.c_str());
+    if (m == frames) std::printf("ok    W2b %s bit-exact over %zu frames (lags %d/%d)\n", id.c_str(), frames, bestLi, bestLo);
     if (m != frames && !c.snaps.empty() && std::getenv("TW_DIAG")) {
         // Re-run snapshot by snapshot; report the first one that differs and its offsets.
         CoreState s;
@@ -171,11 +185,23 @@ static void testCapture(const char* id, Program& prog) {
     }
 }
 
+// Factory registers through the control laws must give the network's factory defaults.
+static void testFactoryControls() {
+    ConcertHall a, b;
+    b.applyControls(b.factory());
+    const bool same = std::memcmp(&a.o, &b.o, sizeof a.o) == 0 && std::memcmp(&a.c, &b.c, sizeof a.c) == 0;
+    CHECK(same, "CONCERT HALL: factory registers do not reproduce the factory network");
+}
+
 int main() {
     testMac();
     testFpc();
-    ConcertHall ch;
-    testCapture("01", ch);
+    testFactoryControls();
+    // Captures: 01 (factory) and 01_* (other settings), when present.
+    for (const char* id : { "01", "01_a", "01_b", "01_c", "01_d" }) {
+        ConcertHall ch;
+        testCapture(id, ch);
+    }
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

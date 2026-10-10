@@ -68,6 +68,16 @@ Measured decay law, CONCERT HALL, LF = MID, 1 kHz octave [R M:baseline §2]:
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | RT s | 0.78 | 1.28 | 1.89 | 2.79 | 3.92 | 5.63 | 8.67 | 17.3 |
 
+**Verified on CONCERT HALL** (bit-exact network captures, `law::` in `Control.hpp`) [R]:
+register clamps LF/MID ≤ F9, CROSSOVER ≥ 08, DEFINITION ≤ C0; allpass complement
+k = 32 − ((g² + 16) >> 5); MID-group g = min(16, ⌊5·s/4⌋) with s capped at
+((FF − DEFINITION) >> 3); DEFINITION group g = min(8, ⌊2·((FF − v) >> 2)/4⌋/2); DEPTH curves are
+sampled at 3v in segments of 256 (CONCERT HALL knots 10/15/20/0, 31/29/18/0, 1/5/15/31; the
+third tap uses the first curve negated); delays with a fine register are
+(u·(256·coarse + fine) + 128) >> 8 samples (u = 34 for pre-echoes, 4 for the decay taps); the
+LARC maps page-5 slider positions to registers non-linearly and moving one resets its page-6
+fine value; pre-echo LEVELs are v >> 2. Plugin parameters store registers, not positions.
+
 ### 224 (V4.4) — from the firmware, slot level [R C§12.5, C§13.3]
 
 | Slot | Law | Likely pot (unconfirmed, Q-T6) |

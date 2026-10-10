@@ -181,21 +181,26 @@ public:
     std::string name() const override { return "tw"; }
     std::string describe() const override {
         return "Tearwash 225 engine, 224XL flavour: native program networks on the virtual 224 core, 224X converter "
-               "emphasis, host/core resampling, Mode Enhancement tap walker. Factory settings; Decay Optimisation not yet "
-               "implemented. Nothing is fitted.";
+               "emphasis, host/core resampling, Mode Enhancement tap walker, control laws driven by the registers the "
+               "original's firmware read back for each case. Decay Optimisation not yet implemented. Nothing is fitted.";
     }
-    bool supports(const OracleCase& c) const override {
-        return (c.program == "CONCERT HALL") && (c.settings == "-" || c.settings == "opt=40:00");
-    }
+    bool supports(const OracleCase& c) const override { return c.program == "CONCERT HALL"; }
     void fit(const OracleCase&, const Metrics&) override {}
-    std::string fitText() const override { return "factory"; }
+    std::string fitText() const override { return "registers"; }
     void saveFit(const std::string&) override {}
     bool loadFit(const std::string&) override { return true; }
     void render(const OracleCase& c, const Stimulus& s, std::vector<double>& L, std::vector<double>& R) override {
         tearwash::Engine e;
         e.setSampleRate(c.rate);
         e.setProgram(std::make_unique<tearwash::ConcertHall>());
-        e.setModeEnhancement(c.settings.find("opt=40:00") == std::string::npos);
+        // Registers as the original's firmware read them back after the slider moves.
+        tearwash::XlRegs r = e.controls();
+        for (int pg = 0; pg < 12 && pg * 13 + 12 <= static_cast<int>(c.sliders.size()); ++pg)
+            for (int k = 0; k < 6; ++k)
+                r.page[pg][k] = static_cast<uint8_t>(std::strtoul(c.sliders.substr(pg * 13 + 2 * k, 2).c_str(), nullptr, 16));
+        r.options = static_cast<uint8_t>(std::strtoul(c.options.c_str(), nullptr, 16));
+        e.setControls(r);
+        e.reset();
         const size_t lat = static_cast<size_t>(std::lround(e.latency()));
         const size_t n = s.audio.frames(), total = n + lat;
         std::vector<float> inL(total, 0.0f), inR(total, 0.0f), a(total), b(total), cc(total), d(total);
