@@ -29,7 +29,7 @@ below it passes its tests.
 | 1.5 | 224X V8.1 oracle: find V8.1's warm-restart entry and program-select call (BlueBox uses 00B4 / 8163 for V8.21), adapt the machine's hooks out of tree | ⬜ 🔬 |
 | 1.6 | 224 V4.4 oracle: machine with the 224 microword layout (14-bit offsets, op bits 14–15, C§12.8 port map), 20 kHz / 500 ns, 16 K DMEM, V4.4 memory map (ROM1–5, WCS at 4000h), 8255 remote-head emulation for slider codes; reuse the ARU/FPC (same boards, B:aru_fpc§1). Validate with the V4.4 diagnostics (C§13.4) | ⬜ 🔬 |
 | 1.7 | Core-level bit-exact harness: run our Core and BlueBox's DSP on the same WCS image, no 8080, compare every sample (oracle tool only; ROM data stays out of the repo) | ⬜ |
-| 1.8 | Store oracle metrics (not audio) as `reports/oracle_224XL.tsv` so W9 runs without ROMs | ⬜ |
+| 1.8 | Store oracle metrics (not audio) so W9 runs without ROMs: the baseline `.tsv` holds them; W9 needs a reader | 🟡 |
 
 ### TW2 — Virtual hardware core (02 §2–4)
 | ID | Issue | Status |
@@ -92,9 +92,42 @@ below it passes its tests.
 
 ## Baseline result (TW1.4)
 
-See `reports/baseline_plate_vs_224XL.md`. In short: with Decay, Tone and Pre-delay fitted per
-program, the plate matches the 1 kHz decay time but not the rest — see the summary scores
-there and the findings in the progress log below.
+`reports/baseline_plate_vs_224XL.md` (+ `.tsv` with every oracle metric). The current plate,
+with Decay, Tone and Pre-delay fitted per program to the oracle's 1 kHz decay, tail spectrum and
+onset, scores over the 22 factory programs:
+
+| Score | Plate | Target (04 §4) |
+| --- | --- | --- |
+| Band RT error | 37 % | ≤ 5 % |
+| EDT error | 33 % | ≤ 10 % |
+| Tail spectrum error | 1.8 dB | ≤ 1.0 dB |
+| Echo density error | 0.31 | ≤ 0.05 |
+| Stereo correlation error | 0.07 | ≤ 0.05 |
+| Modulation, CONCERT HALL | 0.1 dB vs −22 dB | ±2 dB |
+
+What the 224XL does that the plate cannot (each is a requirement for TW4/TW5):
+
+1. **Split-band decay.** Halls decay 1.4–1.8× longer at 125 Hz than at 8 kHz (CONCERT HALL 3.6 →
+   1.4 s); the plate's bands are nearly flat (2.8 → 1.6 s). With LF C0 / MID 40 the crossover
+   sweep moves 125 Hz from 6.1 to 7.2 s while 1 kHz goes 2.1 → 6.5 s.
+2. **Slow echo build-up.** NED 50–300 ms is 0.5–0.7 in the halls and chambers (mixing ≈ 0.3–0.4 s;
+   DIFFUSION 00 → 0.26, 80 → 0.72), the plate is ≈ 0.96 from 30 ms. The 224's grainy, sparse
+   onset is part of its sound.
+3. **Front-loaded energy.** C50 is +1…+6 dB in halls and rooms (strong early taps, DEPTH moves it
+   +4 → −5 dB); the plate is −7…−15 dB. EDT is correspondingly shorter than RT on the 224.
+4. **Zero onset.** The 224's first output arrives at 0–4 ms; the plate's diffusers add 9 ms.
+5. **Short decays.** The decay law reaches 0.4 s (ROOM) / 0.8 s (CONCERT HALL) at code 10 and
+   0.3 s for INVERSE ROOM; the plate cannot go below ≈ 1 s.
+6. **Gentle modulation.** Mode Enhancement spreads a steady tone by −18 … −28 dB (−49 dB off);
+   the plate's modulated tank allpasses spread it by 0 dB (strong chorusing).
+7. **Long decays track well.** RT vs slider code (03 §3) runs 0.8 → 17 s; where the plate can follow
+   (1–18 s) its fitted band curves are within ≈ 10 %, so the decay-law shape is easy; the
+   structure (items 1–4) is the hard part.
+
+Not reverbs, excluded from targets: CHORUS&ECHO, RES CHORDS, M BAND DELAY (multi-tap/resonator
+programs). Measurement caveat: CONCERT HALL 125 Hz RT reads 3.6 s (sweep), 3.0 s (noise burst),
+2.6 s (impulse, low SNR); low bands carry ≈ 15 % uncertainty until averaged over several
+excitations.
 
 ## Decision log
 
@@ -122,4 +155,6 @@ there and the findings in the progress log below.
 - 2026-10-10 — TW0 and TW1.1–1.4: spec and plan written from the compendium and the BlueBox
   notes; BlueBox built against the supplied 224XL V8.21 ROMs (all its self-tests pass on them);
   `tearwash_oracle`, the analysis library and `tearwash_calib` added; 90-case calibration set
-  rendered; baseline report of the current plate committed.
+  rendered; baseline report of the current plate committed. Measurement fixes found on the way:
+  impulses replaced by sweeps (truncation floor), DC blocking (ARU offset), per-Hz spectra,
+  steady-state modulation metric (tail envelopes smear the spectrum).

@@ -34,19 +34,19 @@ f_room_imp  ROOM  impulse  10
 
 # Interrupted noise and sine (modulation) on the reference programs.
 f_concert_hall_burst  CONCERT_HALL  burst  10
-f_concert_hall_sine  CONCERT_HALL  sine1k  6
+f_concert_hall_sine  CONCERT_HALL  sine1k  8
 f_concert_hall_swpL  CONCERT_HALL  sweepL  13
 f_concert_hall_swpR  CONCERT_HALL  sweepR  13
 f_room_burst  ROOM  burst  10
-f_room_sine  ROOM  sine1k  6
+f_room_sine  ROOM  sine1k  8
 f_room_swpL  ROOM  sweepL  13
 f_room_swpR  ROOM  sweepR  13
 f_chamber_burst  CHAMBER  burst  10
-f_chamber_sine  CHAMBER  sine1k  6
+f_chamber_sine  CHAMBER  sine1k  8
 f_chamber_swpL  CHAMBER  sweepL  13
 f_chamber_swpR  CHAMBER  sweepR  13
 f_plate_burst  PLATE  burst  10
-f_plate_sine  PLATE  sine1k  6
+f_plate_sine  PLATE  sine1k  8
 f_plate_swpL  PLATE  sweepL  13
 f_plate_swpR  PLATE  sweepR  13
 
@@ -106,7 +106,7 @@ s_concert_hall_pd40  CONCERT_HALL  sweep  13  1.6=40
 s_concert_hall_pdA0  CONCERT_HALL  sweep  13  1.6=A0
 
 # Mode enhancement (delay modulation) off, and decay optimisation off.
-s_concert_hall_modeoff_sine  CONCERT_HALL  sine1k  6  opt=40:00
-s_concert_hall_modeoff_swp   CONCERT_HALL  impulse  10  opt=40:00
-s_plate_modeoff_sine         PLATE         sine1k  6  opt=40:00
+s_concert_hall_modeoff_sine  CONCERT_HALL  sine1k  8  opt=40:00
+s_concert_hall_modeoff_swp   CONCERT_HALL  sweep  13  opt=40:00
+s_plate_modeoff_sine         PLATE         sine1k  8  opt=40:00
 s_concert_hall_dopoff_burst  CONCERT_HALL  burst  10  opt=80:00

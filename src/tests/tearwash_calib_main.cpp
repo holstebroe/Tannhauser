@@ -338,7 +338,7 @@ int main(int argc, char** argv) {
         o << "| Echo density error | " << fd(sNed / nF, "%.3f") << " | RMS NED difference over the first 300 ms |\n";
         o << "| Stereo correlation error | " << fd(sIacc / nF, "%.3f") << " | mean |IACC_c − IACC_o|, late field |\n";
     }
-    if (ms) o << "| Modulation (CONCERT HALL) | " << pair(fd(ms->o.modDb), fd(ms->k.modDb)) << " dB | sideband/core energy of a 1 kHz tail |\n";
+    if (ms) o << "| Modulation (CONCERT HALL) | " << pair(fd(ms->o.modDb), fd(ms->k.modDb)) << " dB | sideband/core energy of a steady 1 kHz tone |\n";
     o << "\n";
 
     o << "## 1. Factory programs (sweep-derived impulse responses)\n\n";
@@ -418,7 +418,7 @@ int main(int argc, char** argv) {
         if (r.c.kind() == StimKind::Burst)
             o << "| " << r.c.id << " | " << bandRow(r.o) << " | " << bandRow(r.k) << " | " << fd(specErr(r.o, r.k)) << " |\n";
 
-    o << "\n## 9. Modulation (1 kHz sine tail)\n\n| Case | Settings | Side/core dB oracle / cand. |\n| --- | --- | --- |\n";
+    o << "\n## 9. Modulation (steady 1 kHz tone)\n\n| Case | Settings | Side/core dB oracle / cand. |\n| --- | --- | --- |\n";
     for (const auto& r : res)
         if (r.c.kind() == StimKind::Sine)
             o << "| " << r.c.id << " | " << r.c.settings << " | " << pair(fd(r.o.modDb), fd(r.k.modDb)) << " |\n";

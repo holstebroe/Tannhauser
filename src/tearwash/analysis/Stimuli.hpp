@@ -68,8 +68,8 @@ inline Stimulus makeStimulus(const std::string& name, unsigned rate, double seco
         }
         s.stop = s.start + len;
     } else if (name == "sine1k") {
-        // 1 kHz at -12 dBFS peak for 1 s, 5 ms raised-cosine edges.
-        const size_t len = rate, edge = static_cast<size_t>(0.005 * rate);
+        // 1 kHz at -12 dBFS peak for 3 s, 5 ms raised-cosine edges.
+        const size_t len = 3 * rate, edge = static_cast<size_t>(0.005 * rate);
         for (size_t i = 0; i < len && s.start + i < n; ++i) {
             double env = 1.0;
             if (i < edge) env = 0.5 - 0.5 * std::cos(3.14159265358979 * double(i) / edge);

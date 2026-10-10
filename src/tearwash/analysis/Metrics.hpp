@@ -120,15 +120,17 @@ inline const std::vector<double>& thirdOctaveBands() {
     return b;
 }
 
-// Band levels (dB) of a power spectrum over third-octave bands.
+// Band levels (dB, mean power density) of a power spectrum over third-octave bands.
 inline std::vector<double> bandLevels(const std::vector<double>& p, double fs, const std::vector<double>& centres) {
     const size_t n = (p.size() - 1) * 2;
     std::vector<double> out;
     for (double fc : centres) {
         const double lo = fc / std::pow(2.0, 1.0 / 6.0), hi = fc * std::pow(2.0, 1.0 / 6.0);
+        // Mean power per bin, so a flat (white) response reads flat across bands.
         double e = 0;
-        for (size_t k = static_cast<size_t>(std::ceil(lo * n / fs)); k <= static_cast<size_t>(hi * n / fs) && k < p.size(); ++k) e += p[k];
-        out.push_back(10.0 * std::log10(e + 1e-30));
+        size_t cnt = 0;
+        for (size_t k = static_cast<size_t>(std::ceil(lo * n / fs)); k <= static_cast<size_t>(hi * n / fs) && k < p.size(); ++k, ++cnt) e += p[k];
+        out.push_back(10.0 * std::log10(e / std::max<size_t>(cnt, 1) + 1e-30));
     }
     return out;
 }
@@ -313,7 +315,7 @@ struct Metrics {
     std::vector<double> spectrum;          // third-octave dB, normalised to 0 dB mean over 250 Hz..4 kHz
     double hfEdge = 0;                     // last third-octave centre above 1 kHz before the level first drops 10 dB below 1 kHz
     double iacc = 0;                       // late field 80..500 ms
-    double modDb = 0;                      // sine: side (6..150 Hz off) over core (+-6 Hz) energy in the tail
+    double modDb = 0;                      // sine: side (4..150 Hz off) over core (+-4 Hz) energy, steady state
     double onsetMs = 0;                    // first arrival (-20 dB re peak) after the stimulus start
     double gainDb = 0;                     // output energy over input energy (both channels)
     double c50 = 0;                        // early (0..50 ms) to late energy, dB
@@ -370,13 +372,15 @@ inline Metrics analyse(std::vector<double> L, std::vector<double> R, const std::
         const size_t a = stop - static_cast<size_t>(0.15 * fs);
         m.spectrum = bandLevels(powerSpectrum(mono, a, stop), fs, thirdOctaveBands());
     } else {
-        const size_t a = stop + static_cast<size_t>(0.05 * fs);
-        const auto p = powerSpectrum(mono, a, a + static_cast<size_t>(0.5 * fs), 1 << 17);
+        // Steady state: the last second of the tone. A time-invariant reverb returns a pure
+        // sine there; delay modulation spreads energy into sidebands.
+        const size_t a = stop - static_cast<size_t>(1.0 * fs);
+        const auto p = powerSpectrum(mono, a, stop, 1 << 17);
         const double df = fs / double((p.size() - 1) * 2);
         double core = 0, side = 0;
         for (size_t k = 0; k < p.size(); ++k) {
             const double d = std::fabs(k * df - 1000.0);
-            if (d <= 6.0) core += p[k]; else if (d <= 150.0) side += p[k];
+            if (d <= 4.0) core += p[k]; else if (d <= 150.0) side += p[k];
         }
         m.modDb = 10.0 * std::log10((side + 1e-30) / (core + 1e-30));
     }

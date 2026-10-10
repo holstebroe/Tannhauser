@@ -36,7 +36,7 @@ All start after 50 ms of silence; L and R identical unless suffixed L/R.
 | `sweep`, `sweepL`, `sweepR` | exponential sweep 20 Hz–20 kHz, 3 s, −18 dBFS, 10 ms fades; deconvolved with the Farina inverse filter | impulse responses: every IR metric |
 | `impulse`, `impulseL`, `impulseR` | one sample at 0.5 | cross-check only: an impulse rises only ≈ 40 dB above the 16-bit core's truncation floor, the sweep ≈ 75 dB |
 | `burst` | white Gaussian noise, 0.3 s, −18 dBFS RMS | interrupted-noise decay, steady-state spectrum, Decay Optimisation |
-| `sine1k` | 1 kHz, −12 dBFS peak, 1 s, 5 ms edges | modulation (Mode Enhancement) |
+| `sine1k` | 1 kHz, −12 dBFS peak, 3 s, 5 ms edges | modulation (Mode Enhancement) |
 
 −18 dBFS leaves room for the 224X pre-emphasis (+12 dB at HF) before the ADC clips.
 
@@ -53,9 +53,9 @@ offset of a few LSB that the hardware's output transformers remove. The stereo p
 | Onset | first sample after the excitation where the broadband IR reaches −20 dB re its peak |
 | NED | Abel–Huang normalised echo density, 20 ms window, 5 ms hop, from the onset (Gaussian noise = 1); **NED mean** over 50–300 ms; **mixing time** = first time the 30 ms average reaches 0.9 |
 | C50 | early (0–50 ms after onset) to late energy, dB |
-| Spectrum | third-octave levels 63 Hz–12.5 kHz of the IR from onset + 50 ms for 0.5 s (burst: last 150 ms of the excitation), normalised to the 250 Hz–4 kHz mean; **HF edge** = last band above 1 kHz before the level first drops 10 dB below the 1 kHz band |
+| Spectrum | third-octave mean power density (white reads flat) 63 Hz–12.5 kHz of the IR from onset + 50 ms for 0.5 s (burst: last 150 ms of the excitation), normalised to the 250 Hz–4 kHz mean; **HF edge** = last band above 1 kHz before the level first drops 10 dB below the 1 kHz band |
 | IACC | max normalised cross-correlation of L and R (100 Hz–8 kHz) within ±1 ms, 80–500 ms after onset |
-| Modulation | sine: energy 6–150 Hz away from 1 kHz over energy within ±6 Hz, in the tail 50–550 ms after the tone stops (dB) |
+| Modulation | sine, steady state (last 1 s of the tone): energy 4–150 Hz away from 1 kHz over energy within ±4 Hz, dB. A time-invariant reverb gives a pure tone; the tail is not used because its own fast envelope smears the spectrum |
 | Gain | output energy over input energy, dB |
 
 ## 4. Scores and acceptance
