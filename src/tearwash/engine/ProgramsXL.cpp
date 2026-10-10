@@ -592,6 +592,7 @@ const ProgramInfo kXl[] = {
     { "ROOM", 0x04, 0 },
     { "PLATE", 0x02, 1 },
     { "SMALL PLATE", 0x03, 1 },
+    { "CHAMBER", 0x08, 2 },
 };
 
 void setPages(XlRegs& r, const uint8_t (&p1)[6], const uint8_t (&p3)[6], const uint8_t (&p4)[6], const uint8_t (&p5)[6],
@@ -614,6 +615,7 @@ const ProgramInfo* findXlProgram(const char* name) {
 
 std::unique_ptr<Program> makeAlgorithm(int algorithm) {
     if (algorithm == 1) return std::make_unique<Plate>();
+    if (algorithm == 2) return std::make_unique<Chamber>();
     return std::make_unique<ConcertHall>();
 }
 
@@ -643,6 +645,211 @@ XlRegs xlFactory(const ProgramInfo& p) {
     }
     r.options = 0xC0;
     return r;
+}
+
+} // namespace tearwash
+
+namespace tearwash {
+
+void Chamber::tick(CoreState& s) {
+    Pipe p{ s, a_, r_ };
+    Mac& a = a_;
+    int16_t x, d, t, t2;
+
+    // Left input path; the previous sample's out-C sum is stored for the B/D matrix.
+    a.zero();
+    a.add(s.inL, c.monoL);
+    p.store(o.outCStore, r_);
+    x = p.tap(o.monoTap);
+    p.next();
+    a.add(x, c.pre);
+    d = p.tap(o.ap1[1]);
+    a.add(d, c.ap1G);
+    p.store(o.sumL, r_);
+    p.next();
+    a.add(d, c.ap1K);
+    p.store(o.ap1[0], r_);
+    a.add(x, -c.ap1G);
+    // One-pole into the second allpass (its −g·x term uses the one-pole's previous output).
+    x = p.tap(o.lp + 1);
+    p.next();
+    a.add(x, c.lpFb);
+    a.add(r_, c.lpIn);
+    d = p.tap(o.ap2[1]);
+    r_ = a.result();
+    a.add(d, c.ap2G);
+    p.store(o.lp, r_);
+    p.next();
+    a.add(d, c.ap2K);
+    p.store(o.ap2[0], r_);
+    a.add(x, -c.ap2G);
+    p.allpass(o.ap3[0], o.ap3[1], o.ap2[1], o.ap3[0], c.ap3G, c.ap3K);
+    p.allpass(o.ap4[0], o.ap4[1], o.ap3[1], o.ap4[0], c.ap4G, c.ap4K);
+    // B = A + C and D = A − C, from the stored sums.
+    x = p.tap(o.bdA);
+    p.next();
+    a.add(x, 32);
+    t = p.tap(o.bdC);
+    a.add(t, 32);
+    p.store(o.ap4[1], r_);
+    p.next();
+    a.add(x, 32);
+    s.dac[1] = r_;
+    a.add(t, -32);
+    // Tank leg A.
+    x = p.tap(o.tA1[0]);
+    p.next();
+    a.add(x, 32);
+    d = p.tap(o.tA1[1]);
+    a.add(d, c.tA1G);
+    s.dac[3] = r_;
+    p.next();
+    a.add(d, c.tA1K);
+    p.store(o.tA1[0], r_);
+    a.add(x, -c.tA1G);
+    p.allpass(o.tA2[0], o.tA2[1], o.tA1[1], o.tA2[0], c.tA2G, c.tA2K);
+    p.allpass(o.tA3[0], o.tA3[1], o.tA2[1], o.tA3[0], c.tA3G, c.tA3K);
+    t = p.tap(o.modA[0]);
+    p.next();
+    a.add(t, c.modAw);
+    a.add(p.tap(o.modA[1]), 32 - c.modAw);
+    p.store(o.tA3[1], r_);
+    r_ = a.result();
+    t = r_;
+    p.next();
+    a.add(t, c.lp1In);
+    d = p.tap(o.lp1A + 1);
+    a.add(d, c.lp1Fb);
+    p.next();
+    a.add(d, c.lp2In);
+    x = p.tap(o.lp2A + 1);
+    a.add(x, c.lp2Fb);
+    p.store(o.lp1A, r_);
+    p.next();
+    a.add(d, c.loop);
+    a.add(p.tap(o.feed), c.feed);
+    p.store(o.lp2A, r_);
+    a.add(x, c.lpMix);
+    t = p.tap(o.outA[0]);
+    p.next();
+    a.add(t, c.outA[0]);
+    a.add(p.tap(o.outA[1]), c.outA[1]);
+    a.add(p.tap(o.outA[2]), c.outA[2]);
+    a.add(p.tap(o.outA[3]), c.outA[3]);
+    p.store(o.storeA, r_);
+    r_ = a.result();
+    s.dac[0] = r_;
+
+    // Mono sum, the right input chain, tank leg B.
+    a.zero();
+    a.add(s.inR, c.monoR);
+    a.add(p.tap(o.sumL), c.monoSum);
+    p.store(o.sumR, r_);
+    x = p.tap(o.inB1[0]);
+    p.next();
+    a.add(x, 32);
+    d = p.tap(o.inB1[1]);
+    a.add(d, c.inB1G);
+    p.store(o.monoIn, r_);
+    p.next();
+    a.add(d, c.inB1K);
+    p.store(o.inB1[0], r_);
+    a.add(x, -c.inB1G);
+    p.allpass(o.inB2[0], o.inB2[1], o.inB1[1], o.inB2[0], c.inB2G, c.inB2K);
+    t = p.tap(o.modB[0]);
+    p.next();
+    a.add(t, c.modBw);
+    a.add(p.tap(o.modB[1]), 32 - c.modBw);
+    p.store(o.inB2[1], r_);
+    r_ = a.result();
+    t2 = r_;
+    p.next();
+    a.add(t2, c.lp1In);
+    d = p.tap(o.lp1B + 1);
+    a.add(d, c.lp1Fb);
+    p.next();
+    a.add(d, c.lp2In);
+    x = p.tap(o.lp2B + 1);
+    a.add(x, c.lp2Fb);
+    p.store(o.lp1B, r_);
+    p.next();
+    a.add(d, c.loop);
+    a.add(p.tap(o.feed), c.feed);
+    p.store(o.lp2B, r_);
+    a.add(x, c.lpMix);
+    x = p.tap(o.tB1[0]);
+    p.next();
+    a.add(x, 32);
+    d = p.tap(o.tB1[1]);
+    a.add(d, c.tB1G);
+    p.store(o.storeB, r_);
+    p.next();
+    a.add(d, c.tB1K);
+    p.store(o.tB1[0], r_);
+    a.add(x, -c.tB1G);
+    p.allpass(o.tB2[0], o.tB2[1], o.tB1[1], o.tB2[0], c.tB2G, c.tB2K);
+    p.allpass(o.tB3[0], o.tB3[1], o.tB2[1], o.tB3[0], c.tB3G, c.tB3K);
+    p.allpass(o.tB4[0], o.tB4[1], o.tB3[1], o.tB4[0], c.tB4G, c.tB4K);
+    p.allpass(o.tB5[0], o.tB5[1], o.tB4[1], o.tB5[0], c.tB5G, c.tB5K);
+    t = p.tap(o.outC[0]);
+    p.next();
+    a.add(t, c.outC[0]);
+    a.add(p.tap(o.outC[1]), c.outC[1]);
+    a.add(p.tap(o.outC[2]), c.outC[2]);
+    a.add(p.tap(o.outC[3]), c.outC[3]);
+    p.store(o.tB5[1], r_);
+    r_ = a.result();
+    s.dac[2] = r_;
+
+    s.mem.advance();
+}
+
+} // namespace tearwash
+
+namespace tearwash {
+
+XlRegs Chamber::factory() const {
+    XlRegs r;
+    const uint8_t p1[6] = { 0x78, 0x62, 0x31, 0xE0, 0x00, 0x00 };
+    const uint8_t p3[6] = { 0x89, 0x89, 0x80, 0xD0, 0x59, 0x02 };
+    for (int i = 0; i < 6; ++i) { r.page[0][i] = p1[i]; r.page[2][i] = p3[i]; }
+    r.size = 0x01;          // no SIZE map in this program
+    r.options = 0xC0;
+    return r;
+}
+
+// Control laws of CHAMBER (03 §3) [R]. No DEFINITION, no pre-echo pages, no SIZE map.
+void Chamber::applyControls(const XlRegs& r) {
+    using namespace law;
+    const uint8_t lf = r.at(1, 1) > 0xF9 ? 0xF9 : r.at(1, 1);
+    const uint8_t mid = r.at(1, 2) > 0xF9 ? 0xF9 : r.at(1, 2);
+    const uint8_t xo = r.at(1, 3) < 0x08 ? 0x08 : r.at(1, 3);
+    const int sMid = step5(mid);
+
+    pair(r.at(3, 4), c.lpIn, c.lpFb);
+    pair(r.at(1, 4), c.lp1In, c.lp1Fb);
+    pair(xo, c.lp2In, c.lp2Fb);
+    c.loop = sMid;
+    c.lpMix = step5(lf) - sMid;
+    g11_ = scaledGain(5, 11, sMid, 1);
+    g10_ = scaledGain(5, 10, sMid, 1);
+    setDecayReduction(reduction_);
+
+    const int x = r.at(3, 5) >> 2;
+    c.ap1G = c.ap2G = scaledGain(6, 26, x, 2);
+    c.ap1K = c.ap2K = allpassK(c.ap1G);
+
+    static const int kD0[4] = { 30, 30, 30, 5 }, kD1[4] = { 15, 20, 25, 2 }, kD2[4] = { 5, 10, 17, 30 },
+                     kD3[4] = { 3, 8, 13, 20 };
+    const uint8_t dep = r.at(1, 5);
+    c.outA[0] = c.outC[0] = curve4(kD0, dep);
+    c.outA[1] = c.outC[1] = -curve4(kD1, dep);
+    c.outA[2] = c.outC[2] = curve4(kD2, dep);
+    c.outA[3] = c.outC[3] = -curve4(kD3, dep);
+
+    // PREDELAY: 34 samples per step, register at most E0.
+    const uint8_t pd = r.at(1, 6) > 0xE0 ? 0xE0 : r.at(1, 6);
+    o.monoTap = static_cast<uint16_t>(20973 + 34 * pd);
 }
 
 } // namespace tearwash

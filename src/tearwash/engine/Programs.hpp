@@ -203,11 +203,78 @@ private:
     int g1_ = 12, g2_ = 15, reduction_ = 0;
 };
 
+// 224XL CHAMBER. Mono input (L and R summed); an input chain of four allpasses with a one-pole;
+// two tank legs, each a fractional (Mode Enhancement) tap into two one-poles and a run of
+// allpasses; outputs A and C from taps; B and D are the sum and difference of A and C (one and
+// two samples late). SIZE does not apply. Defaults are the factory settings, taps at rest [R].
+class Chamber final : public Program {
+public:
+    struct Offsets {
+        uint16_t sumL = 20940, sumR = 20946, outCStore = 20943;   // stored mono input, out-A and out-C sums
+        uint16_t monoIn = 20971;                       // mono input line
+        uint16_t monoTap = 20973;                      // its read point (PREDELAY moves it)
+        uint16_t ap1[2] = { 2047, 2284 };              // {w, d}
+        uint16_t lp = 2285;                            // one-pole after the first allpass
+        uint16_t ap2[2] = { 2286, 2929 };
+        uint16_t ap3[2] = { 3785, 5832 }, ap4[2] = { 3957, 5184 };
+        uint16_t bdA = 20947, bdC = 20944;             // taps for the B/D matrix
+        uint16_t tA1[2] = { 4126, 4912 }, tA2[2] = { 7029, 11077 }, tA3[2] = { 7370, 10217 };
+        uint16_t modA[2] = { 11441, 11443 }, modB[2] = { 20178, 20180 };
+        uint16_t lp1A = 20959, lp2A = 20956, lp1B = 20953, lp2B = 20950;
+        uint16_t feed = 2932;                          // input-chain output into both legs
+        uint16_t outA[4] = { 6345, 15081, 11601, 20337 }, storeA = 11669;
+        uint16_t inB1[2] = { 3616, 6242 }, inB2[2] = { 11737, 14809 };
+        uint16_t storeB = 2933;
+        uint16_t tB1[2] = { 11822, 14246 }, tB2[2] = { 11991, 13391 }, tB3[2] = { 12162, 12538 };
+        uint16_t tB4[2] = { 15748, 19332 }, tB5[2] = { 16089, 18443 };
+        uint16_t outC[4] = { 15731, 6995, 19892, 11156 };
+    };
+    struct Coefs {
+        int monoL = 32, monoR = 12, monoSum = 12;      // input gains (left path, mono sum)
+        int pre = 32;                                  // predelayed input
+        int ap1G = 16, ap1K = 24, ap2G = 16, ap2K = 24; // DIFFUSION
+        int lpFb = 6, lpIn = 26;                       // HF BANDWIDTH pair
+        int ap3G = 8, ap3K = 30, ap4G = 8, ap4K = 30;
+        int tA1G = 8, tA1K = 30, tA2G = 11, tA2K = 28, tA3G = 13, tA3K = 27;
+        int modAw = 32, modBw = 32;
+        int lp1In = 28, lp1Fb = 4;                     // TREBLE DECAY pair
+        int lp2In = 6, lp2Fb = 26;                     // CROSSOVER pair
+        int loop = 12, feed = 32, lpMix = 3;           // MID loop gain, input feed, LF − MID on the crossover
+        int outA[4] = { 30, -15, 5, -3 }, outC[4] = { 30, -15, 5, -3 };   // DEPTH
+        int inB1G = 10, inB1K = 29, inB2G = 10, inB2K = 29;   // MID group (with tA2, tB4)
+        int tB1G = 8, tB1K = 30, tB2G = 8, tB2K = 30, tB3G = 8, tB3K = 30, tB4G = 11, tB4K = 28, tB5G = 13, tB5K = 27;
+    };
+
+    void tick(CoreState& s) override;
+    int loopLength() const override { return 100; }
+    int modTaps() const override { return 2; }
+    uint16_t modHome(int i) const override { return i ? 20178 : 11441; }
+    void setModTap(int i, uint16_t o0, uint16_t o1, int w) override {
+        uint16_t* t = i ? o.modB : o.modA;
+        t[0] = o0; t[1] = o1;
+        (i ? c.modBw : c.modAw) = w;
+    }
+    void applyControls(const XlRegs& r) override;
+    XlRegs factory() const override;
+    void predelayRamp(uint16_t*& l, uint16_t*& r, int*& g) override { l = &o.monoTap; r = &o.monoTap; g = &c.pre; }
+    void setDecayReduction(int steps) override {
+        reduction_ = steps;
+        c.tA2G = law::reduced(g11_, steps); c.tA2K = law::allpassK(c.tA2G);
+        c.tB4G = law::reduced(g11_, steps); c.tB4K = law::allpassK(c.tB4G);
+        c.inB1G = law::reduced(g10_, steps); c.inB1K = law::allpassK(c.inB1G);
+        c.inB2G = law::reduced(g10_, steps); c.inB2K = law::allpassK(c.inB2G);
+    }
+    Offsets o;
+    Coefs c;
+private:
+    int g11_ = 11, g10_ = 10, reduction_ = 0;
+};
+
 // The 224XL factory programs implemented so far: name, program id, algorithm, factory registers.
 struct ProgramInfo {
     const char* name;
     uint8_t id;
-    int algorithm;          // 0 CONCERT HALL network, 1 PLATE network
+    int algorithm;          // 0 CONCERT HALL network, 1 PLATE network, 2 CHAMBER network
 };
 const ProgramInfo* xlPrograms(int& count);
 const ProgramInfo* findXlProgram(const char* name);

@@ -54,7 +54,7 @@ below it passes its tests.
 | --- | --- | --- |
 | 4.1 | `tools/tearwash/netlist.py`: loaded program image → signal-flow netlist and step listing (reads the user's local tools' output; no data committed) | ✅ |
 | 4.2 | 224XL CONCERT HALL: native network, bit-exact against the original (40 000 frames, W2b); factory settings meet every 04 §4 target (`reports/tw_concert_hall_vs_224XL.md`) | ✅ factory settings |
-| 4.3 | 224XL PLATE (+ SMALL PLATE) and ROOM (CONCERT HALL algorithm) bit-exact with controls and SIZE (W2b, 9 captures); CHAMBER ⬜ | 🟡 |
+| 4.3 | 224XL PLATE (+ SMALL PLATE), ROOM (CONCERT HALL algorithm) and CHAMBER: native networks bit-exact with all controls and SIZE (W2b, 13 captures) | ✅ |
 | 4.4 | Remaining 18 XL programs (splits, chorus/echo, res chords, multiband delay, inverse room) | ⬜ |
 | 4.5 | 224 V4.4: the seven algorithms (keys 01, 45, 84, 06, 0C, 1C, 0E), after TW1.6 | ⬜ |
 | 4.6 | 224X V8.1 programs, after TW1.5 | ⬜ |
@@ -182,3 +182,7 @@ excitations.
   programs: 3.4 % band RT, 2.1 % EDT, 0.9 dB spectrum, NED 0.058, IACC 0.005; with modulation
   off ROOM matches exactly; residuals with modulation are within one random realisation
   (seed spread ±2–3 % RT).
+- 2026-10-10 — CHAMBER (mono input, B/D as sum and difference of A/C, two modulated tank legs):
+  network and laws bit-exact first time (linear predelay 34·v up to E0, four MID-group
+  allpasses, no DEFINITION). Five programs: 3.5 % band RT, 0.9 dB spectrum, NED 0.056,
+  IACC 0.004. 77 core checks.

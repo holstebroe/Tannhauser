@@ -205,6 +205,7 @@ int main() {
     testFpc();
     testFactoryControls<ConcertHall>("CONCERT HALL");
     testFactoryControls<Plate>("PLATE");
+    testFactoryControls<Chamber>("CHAMBER");
     // Captures: 01 (factory) and 01_* (other settings), when present.
     for (const char* id : { "01", "01_a", "01_b", "01_c", "01_d", "01_s56", "01_s20", "04" }) {
         ConcertHall ch;
@@ -213,6 +214,10 @@ int main() {
     for (const char* id : { "02", "02_a", "02_b", "02_c", "02_s74", "02_s00", "03" }) {
         Plate pl;
         testCapture(id, pl);
+    }
+    for (const char* id : { "08", "08_a", "08_b", "08_c" }) {
+        Chamber ch;
+        testCapture(id, ch);
     }
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

@@ -85,6 +85,11 @@ rows 38/48/58/62/65 and 28/45/55/60/65; the two MID-group allpasses use (scale 5
 DIFFUSION sets three input allpasses (6, 26), (5, 26), (3, 31); DEPTH curves 25/16/7/3 (first
 tap, sign per output), 16/16/16/10 (negated), 16, 16/16/16/26.
 
+**Verified on CHAMBER** [R]: no SIZE map, no DEFINITION, no pre-echo pages; PREDELAY is linear
+(34·v samples, register at most E0); MID-group allpasses (5, 11) ×2 and (5, 10) ×2; DIFFUSION
+two input allpasses (6, 26); DEPTH curves 30/30/30/5, 15/20/25/2 (negated), 5/10/17/30,
+3/8/13/20 (negated); outputs B = A + C and D = A − C (one and two samples late).
+
 **SIZE** (both algorithms, bit-exact at SIZE 00, 20, 56, 74, FE) [R]: offsets are the program's
 template offsets through the band map of 02/`law::SizeMap`; delay builders give S(base) + 1 + d;
 the PREDELAY register is clamped to the largest value with 34·t(v) ≤ FFF6h − [3CE7] (so the
