@@ -77,12 +77,13 @@ Sweeps (decay law, crossover, treble, depth, diffusion, predelay) must match row
 the same tolerances; candidates without a control are fitted where they can be (the 225 plate)
 and the residual is reported, not scored.
 
-## 5. Automated tests (planned `tearwash_engine_test`; status in PLAN.md)
+## 5. Automated tests (`tearwash_core_test`; status in PLAN.md)
 
 | ID | Test | Pass |
 | --- | --- | --- |
 | W1 | ARU multiply-accumulate vs the ROM self-test vectors (read from the user's ROMs; skipped if absent) | all vectors bit-exact |
 | W2 | Allpass and one-pole blocks on the Core | match the hardware form of 02 §2 to the LSB |
+| W2b | Native program network vs a capture of the original program (`tearwash_oracle --capture ID FRAMES build/capture/ID.bin`, options off, same DSP state and input) | every DAC word identical; skipped without a capture |
 | W3 | FPC input/output quantisation | step 16/8/4/2 per range; output normalisation ≤ 3 shifts |
 | W4 | Silence in → silence out after the tail (DC-blocked), every program | < −120 dBFS, no limit cycle above −100 dBFS |
 | W5 | Robustness: full-scale noise and square into every program, every flavour | finite, no NaN, overflow saturates |

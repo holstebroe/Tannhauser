@@ -45,6 +45,11 @@ public:
     virtual void tick(CoreState& s) = 0;
     virtual int loopLength() const = 0;           // steps per sample (sets the core rate)
     virtual void reset() { a_ = Mac{}; r_ = 0; }
+    // Modulated taps (Mode Enhancement): count, resting offset, and the live position as two
+    // adjacent offsets with the first one's weight (out of 32).
+    virtual int modTaps() const { return 0; }
+    virtual uint16_t modHome(int) const { return 0; }
+    virtual void setModTap(int, uint16_t, uint16_t, int) {}
     // Seed the pipeline (accumulator, result register), e.g. from a hardware snapshot.
     void loadPipeline(int32_t acc, int16_t result) { a_.acc = acc; r_ = result; }
 protected:
@@ -93,6 +98,13 @@ public:
 
     void tick(CoreState& s) override;
     int loopLength() const override { return 105; }
+    int modTaps() const override { return 2; }
+    uint16_t modHome(int i) const override { return i ? 1 : 254; }
+    void setModTap(int i, uint16_t o0, uint16_t o1, int w) override {
+        uint16_t* t = i ? o.modR : o.modL;
+        t[0] = o0; t[1] = o1;
+        (i ? c.modRw : c.modLw) = w;
+    }
     Offsets o;
     Coefs c;
 };

@@ -96,7 +96,14 @@ The multiply-accumulate must be bit-exact (it sets the noise, limit cycles and D
   they step back up (XL) [R B:parameters§2].
 - Mode Enhancement: the 8080 rewrites the crossfade weights of the modulated taps ≈ 980 times a
   second (XL, CHORUS 80), 1/32 sample per update, direction re-drawn from a pseudo-random byte
-  every 8·N updates, excursion bounded by a window mask [R B:parameters§5.3]. On the 224 the two
+  every 8·N updates, excursion bounded by a window mask [R B:parameters§5.3]. Traced on
+  CONCERT HALL [R]: the two taps of a pair leapfrog (when one tap's weight reaches 0 it jumps 2
+  samples to the far side of its partner), so the read position glides ≈ 30 samples/s; a move
+  out of the window (offset bit 7 must stay as at home, mask 80h) reverses the direction; the
+  right tap moves opposite to the left. Because the products commute, the network models the
+  pair as one position in 1/32 sample (`ModWalker`). Turning it off freezes the taps at home
+  (weight 32 on the home offset). It changes the decay too: CONCERT HALL measures 2.69 s at
+  1 kHz with it off, 2.52 s on [M:tw_concert_hall]. On the 224 the two
   controls are documented as "time between updates" and "step size", 1–16 each [S C§3].
 - The X/XL rates follow the 8080's own speed (wait states included); the engine models them as
   fixed update rates in core time [D], measured from the oracle.

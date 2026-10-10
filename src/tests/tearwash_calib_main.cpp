@@ -5,9 +5,10 @@
 //
 // usage: tearwash_calib ORACLE_DIR [--report FILE.md] [--tsv FILE.tsv] [--candidate NAME]
 //                       [--wav-dir DIR] [--only SUBSTRING]
-// Candidates: plate (the Tannhäuser Dattorro plate, spec 03 §12).
+// Candidates: plate (the Tannhäuser Dattorro plate, spec 03 §12), tw (the Tearwash engine).
 
 #include "core/Effects.hpp"
+#include "tearwash/engine/Tearwash.hpp"
 #include "tearwash/analysis/Metrics.hpp"
 #include "tearwash/analysis/Stimuli.hpp"
 #include "tearwash/analysis/Wav.hpp"
@@ -71,6 +72,8 @@ public:
     virtual void render(const OracleCase& c, const Stimulus& s, std::vector<double>& L, std::vector<double>& R) = 0;
     virtual void saveFit(const std::string& key) = 0;
     virtual bool loadFit(const std::string& key) = 0;
+    // Whether the candidate can render this case (program and settings it implements).
+    virtual bool supports(const OracleCase&) const { return true; }
 };
 
 // The current Tannhäuser reverb: Dattorro plate with free Decay / Tone / Pre-delay (0..1).
@@ -172,8 +175,47 @@ private:
     std::map<std::string, std::array<double, 3>> fits_;
 };
 
+// The Tearwash engine with native 224XL program networks, factory settings (no fitting).
+class TearwashCandidate final : public Candidate {
+public:
+    std::string name() const override { return "tw"; }
+    std::string describe() const override {
+        return "Tearwash 225 engine, 224XL flavour: native program networks on the virtual 224 core, 224X converter "
+               "emphasis, host/core resampling, Mode Enhancement tap walker. Factory settings; Decay Optimisation not yet "
+               "implemented. Nothing is fitted.";
+    }
+    bool supports(const OracleCase& c) const override {
+        return (c.program == "CONCERT HALL") && (c.settings == "-" || c.settings == "opt=40:00");
+    }
+    void fit(const OracleCase&, const Metrics&) override {}
+    std::string fitText() const override { return "factory"; }
+    void saveFit(const std::string&) override {}
+    bool loadFit(const std::string&) override { return true; }
+    void render(const OracleCase& c, const Stimulus& s, std::vector<double>& L, std::vector<double>& R) override {
+        tearwash::Engine e;
+        e.setSampleRate(c.rate);
+        e.setProgram(std::make_unique<tearwash::ConcertHall>());
+        e.setModeEnhancement(c.settings.find("opt=40:00") == std::string::npos);
+        const size_t lat = static_cast<size_t>(std::lround(e.latency()));
+        const size_t n = s.audio.frames(), total = n + lat;
+        std::vector<float> inL(total, 0.0f), inR(total, 0.0f), a(total), b(total), cc(total), d(total);
+        std::copy(s.audio.ch[0].begin(), s.audio.ch[0].end(), inL.begin());
+        std::copy(s.audio.ch[1].begin(), s.audio.ch[1].end(), inR.begin());
+        float* outs[4] = { a.data(), b.data(), cc.data(), d.data() };
+        const int blk = 256;
+        for (size_t i = 0; i < total; i += blk) {
+            const int m = static_cast<int>(std::min<size_t>(blk, total - i));
+            float* o[4] = { outs[0] + i, outs[1] + i, outs[2] + i, outs[3] + i };
+            e.process(inL.data() + i, inR.data() + i, o, m);
+        }
+        L.assign(a.begin() + lat, a.begin() + lat + n);
+        R.assign(cc.begin() + lat, cc.begin() + lat + n);
+    }
+};
+
 std::unique_ptr<Candidate> makeCandidate(const std::string& n) {
     if (n == "plate") return std::make_unique<PlateCandidate>();
+    if (n == "tw") return std::make_unique<TearwashCandidate>();
     return nullptr;
 }
 
@@ -245,6 +287,7 @@ int main(int argc, char** argv) {
         std::getline(is, loop, '\t'); std::getline(is, dsp, '\t'); std::getline(is, c.settings, '\t');
         std::getline(is, c.sliders, '\t'); std::getline(is, c.options, '\t');
         if (c.id.empty() || (!only.empty() && c.id.find(only) == std::string::npos)) continue;
+        if (!cand->supports(c)) continue;
         c.seconds = std::atof(sec.c_str()); c.rate = static_cast<unsigned>(std::atoi(rate.c_str()));
         c.loop = std::atoi(loop.c_str()); c.dspRate = std::atof(dsp.c_str());
         cases.push_back(c);

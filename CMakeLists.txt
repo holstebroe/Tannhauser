@@ -104,13 +104,13 @@ add_executable(tannhauser_gui_test ${CLAP_SOURCES} ${GUI_SOURCES} src/tests/gui_
 target_link_libraries(tannhauser_gui_test PRIVATE tannhauser_core ${GUI_LIBS})
 
 # Tearwash 225 engine (docs/tearwash/01 §2).
-add_library(tearwash_engine STATIC src/tearwash/engine/ProgramsXL.cpp)
+add_library(tearwash_engine STATIC src/tearwash/engine/ProgramsXL.cpp src/tearwash/engine/Tearwash.cpp)
 add_executable(tearwash_core_test src/tests/tearwash_core_test_main.cpp)
 target_link_libraries(tearwash_core_test PRIVATE tearwash_engine)
 
 # Tearwash 225 calibration against the Lexicon oracle renders (docs/tearwash/04_VALIDATION.md).
 add_executable(tearwash_calib src/tests/tearwash_calib_main.cpp)
-target_link_libraries(tearwash_calib PRIVATE tannhauser_core)
+target_link_libraries(tearwash_calib PRIVATE tannhauser_core tearwash_engine)
 
 enable_testing()
 add_test(NAME dsp COMMAND tannhauser_dsp_test)
