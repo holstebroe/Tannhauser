@@ -82,7 +82,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2.11 | BBD model (option B: clocked S&H, Holters–Parker) | ⬜ |
 | 2.12 | Wah circuit on EXP pedal (PRA) | ⬜ |
 | 2.13 | Reverb [A] Dattorro plate | ✅ |
-| 2.14 | Reverb: study of the Lexicon 224 algorithms (README promise) and a 224-style hall | ⬜ |
+| 2.14 | Reverb: study of the Lexicon 224 algorithms (README promise) and a 224-style hall → now WP9 (Tearwash 225) | 🟡 oracle + baseline done |
 
 ### WP3 — Plugin (CLAP)
 | ID | Issue | Status |
@@ -142,6 +142,15 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | P-11 | Q law between the two IC data points | exponential | 🔬 |
 | P-12 | Sustain level row 20 for Organ (20 %) looks wrong | as decoded | 🔬 |
 
+### WP9 — Tearwash 225 (Lexicon 224-family reverb, own plugin + Tannhäuser reverb)
+Spec in `docs/tearwash/`, plan and issue tables in **`docs/tearwash/PLAN.md`** (TW0–TW8).
+| ID | Issue | Status |
+| --- | --- | --- |
+| 9.1 | TW0 spec + plan | ✅ |
+| 9.2 | TW1 ROM oracle (BlueBox, 224XL V8.21), calibration tool, baseline of the current plate | 🟡 224X / 224 oracles open |
+| 9.3 | TW2–TW5 engine (virtual 224 core, system layer, algorithms, controls) | ⬜ |
+| 9.4 | TW6 `tearwash225.clap` with own UI; TW7 Tannhäuser integration (224 default) | ⬜ |
+
 ### WP8 — Later / nice to have
 | ID | Issue | Status |
 | --- | --- | --- |
@@ -164,6 +173,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2026-10-09 | WP1 analog-modelling pass (prompted by Arturia's TAE claims): nonlinear OTA filter, cycle jitter, 4-point BLEP, optional 4×. Presets are not compensated for model changes, only loudness-refitted (user's call) |
 | 2026-10-09 | Long envelope mode added as a stored per-patch switch [A] (global setting in Arturia's emulation) |
 | 2026-10-09 | Loudness: presets are trimmed by an added, stored Patch Gain (not by editing decoded line levels) to −18 LUFS max-momentary |
+| 2026-10-10 | Lexicon work becomes its own product, Tearwash 225 (WP9); its decisions are logged in `docs/tearwash/PLAN.md` |
 
 ## Progress log
 
@@ -193,5 +203,8 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
   printing and cap colours from photos of the CS-80 (5.6): duplicate RES/LEVEL names fixed.
 - 2026-10-10 — Ribbon Hold (2.16, params 98/99, T22); tooltips with full names and
   descriptions, shorter panel names at one size (5.7).
+- 2026-10-10 — WP9 started: Tearwash 225 spec and plan (`docs/tearwash/`), BlueBox-based 224XL
+  oracle (`tools/oracle/`), `tearwash_calib`, baseline report of the current plate against 22
+  original programs (`docs/tearwash/reports/baseline_plate_vs_224XL.md`).
 - Next suggested steps: P-1 confirmation with a reference recording; 1.5 nonlinear SVF;
   1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

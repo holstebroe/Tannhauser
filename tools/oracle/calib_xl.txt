@@ -1,0 +1,112 @@
+# Tearwash calibration set against the 224XL V8.21 oracle (docs/tearwash/04_VALIDATION.md §2).
+# ID  PROGRAM  STIMULUS  SECONDS  [PAGE.SLIDER=HEX ...] [opt=MASK:BITS]
+# Page 1 sliders: 1 LF DECAY, 2 MID DECAY, 3 CROSSOVER, 4 TREBLE DECAY, 5 DEPTH, 6 PREDELAY
+# Page 3 sliders: 1 LF STOP DCY, 2 MID STOP DCY, 3 CHORUS, 4 HF BANDWIDTH, 5 DIFFUSION, 6 DEFINITION
+
+# Every factory program at its factory settings (exponential sweep, deconvolved).
+f_concert_hall_swp  CONCERT_HALL  sweep  13
+f_bright_hall_swp  BRIGHT_HALL  sweep  13
+f_dark_hall_swp  DARK_HALL  sweep  13
+f_room_swp  ROOM  sweep  13
+f_small_room_swp  SMALL_ROOM  sweep  13
+f_chamber_swp  CHAMBER  sweep  13
+f_rich_chamber_swp  RICH_CHAMBER  sweep  13
+f_plate_swp  PLATE  sweep  13
+f_small_plate_swp  SMALL_PLATE  sweep  13
+f_cd_plate_a_swp  CD_PLATE_A  sweep  13
+f_cd_plate_b_swp  CD_PLATE_B  sweep  13
+f_chorus_echo_swp  CHORUS&ECHO  sweep  16
+f_res_chords_swp  RES_CHORDS  sweep  16
+f_m_band_delay_swp  M_BAND_DELAY  sweep  13
+f_hall_hall_swp  HALL/HALL  sweep  13
+f_plate_plate_swp  PLATE/PLATE  sweep  13
+f_plate_hall_swp  PLATE/HALL  sweep  13
+f_plate_chorus_swp  PLATE/CHORUS  sweep  16
+f_rich_plate_swp  RICH_PLATE  sweep  13
+f_dark_chamber_swp  DARK_CHAMBER  sweep  13
+f_inverse_room_swp  INVERSE_ROOM  sweep  13
+f_rich_split_swp  RICH_SPLIT  sweep  13
+
+# Raw impulses, to cross-check the sweep deconvolution.
+f_concert_hall_imp  CONCERT_HALL  impulse  10
+f_plate_imp  PLATE  impulse  10
+f_room_imp  ROOM  impulse  10
+
+# Interrupted noise and sine (modulation) on the reference programs.
+f_concert_hall_burst  CONCERT_HALL  burst  10
+f_concert_hall_sine  CONCERT_HALL  sine1k  6
+f_concert_hall_swpL  CONCERT_HALL  sweepL  13
+f_concert_hall_swpR  CONCERT_HALL  sweepR  13
+f_room_burst  ROOM  burst  10
+f_room_sine  ROOM  sine1k  6
+f_room_swpL  ROOM  sweepL  13
+f_room_swpR  ROOM  sweepR  13
+f_chamber_burst  CHAMBER  burst  10
+f_chamber_sine  CHAMBER  sine1k  6
+f_chamber_swpL  CHAMBER  sweepL  13
+f_chamber_swpR  CHAMBER  sweepR  13
+f_plate_burst  PLATE  burst  10
+f_plate_sine  PLATE  sine1k  6
+f_plate_swpL  PLATE  sweepL  13
+f_plate_swpR  PLATE  sweepR  13
+
+# Decay law: LF = MID swept (crossover then has no effect).
+s_concert_hall_dcy10  CONCERT_HALL  sweep  19  1.1=10 1.2=10
+s_concert_hall_dcy30  CONCERT_HALL  sweep  19  1.1=30 1.2=30
+s_concert_hall_dcy50  CONCERT_HALL  sweep  19  1.1=50 1.2=50
+s_concert_hall_dcy70  CONCERT_HALL  sweep  19  1.1=70 1.2=70
+s_concert_hall_dcy90  CONCERT_HALL  sweep  19  1.1=90 1.2=90
+s_concert_hall_dcyB0  CONCERT_HALL  sweep  19  1.1=B0 1.2=B0
+s_concert_hall_dcyD0  CONCERT_HALL  sweep  19  1.1=D0 1.2=D0
+s_concert_hall_dcyF0  CONCERT_HALL  sweep  19  1.1=F0 1.2=F0
+s_plate_dcy10  PLATE  sweep  19  1.1=10 1.2=10
+s_plate_dcy30  PLATE  sweep  19  1.1=30 1.2=30
+s_plate_dcy50  PLATE  sweep  19  1.1=50 1.2=50
+s_plate_dcy70  PLATE  sweep  19  1.1=70 1.2=70
+s_plate_dcy90  PLATE  sweep  19  1.1=90 1.2=90
+s_plate_dcyB0  PLATE  sweep  19  1.1=B0 1.2=B0
+s_plate_dcyD0  PLATE  sweep  19  1.1=D0 1.2=D0
+s_plate_dcyF0  PLATE  sweep  19  1.1=F0 1.2=F0
+s_room_dcy10  ROOM  sweep  19  1.1=10 1.2=10
+s_room_dcy30  ROOM  sweep  19  1.1=30 1.2=30
+s_room_dcy50  ROOM  sweep  19  1.1=50 1.2=50
+s_room_dcy70  ROOM  sweep  19  1.1=70 1.2=70
+s_room_dcy90  ROOM  sweep  19  1.1=90 1.2=90
+s_room_dcyB0  ROOM  sweep  19  1.1=B0 1.2=B0
+s_room_dcyD0  ROOM  sweep  19  1.1=D0 1.2=D0
+s_room_dcyF0  ROOM  sweep  19  1.1=F0 1.2=F0
+
+# Split-band decay: LF long, MID short, crossover swept.
+s_concert_hall_xov10  CONCERT_HALL  sweep  17  1.1=C0 1.2=40 1.3=10
+s_concert_hall_xov30  CONCERT_HALL  sweep  17  1.1=C0 1.2=40 1.3=30
+s_concert_hall_xov60  CONCERT_HALL  sweep  17  1.1=C0 1.2=40 1.3=60
+s_concert_hall_xovA0  CONCERT_HALL  sweep  17  1.1=C0 1.2=40 1.3=A0
+s_concert_hall_xovE0  CONCERT_HALL  sweep  17  1.1=C0 1.2=40 1.3=E0
+
+# Treble decay sweep.
+s_concert_hall_tre20  CONCERT_HALL  sweep  13  1.4=20
+s_concert_hall_tre60  CONCERT_HALL  sweep  13  1.4=60
+s_concert_hall_treA0  CONCERT_HALL  sweep  13  1.4=A0
+s_concert_hall_treE0  CONCERT_HALL  sweep  13  1.4=E0
+s_concert_hall_treFE  CONCERT_HALL  sweep  13  1.4=FE
+
+# Depth and diffusion sweeps.
+s_concert_hall_dep00  CONCERT_HALL  sweep  13  1.5=00
+s_concert_hall_dep55  CONCERT_HALL  sweep  13  1.5=55
+s_concert_hall_depAA  CONCERT_HALL  sweep  13  1.5=AA
+s_concert_hall_depFF  CONCERT_HALL  sweep  13  1.5=FF
+s_concert_hall_dif00  CONCERT_HALL  sweep  13  3.5=00
+s_concert_hall_dif40  CONCERT_HALL  sweep  13  3.5=40
+s_concert_hall_dif80  CONCERT_HALL  sweep  13  3.5=80
+s_concert_hall_difC0  CONCERT_HALL  sweep  13  3.5=C0
+s_concert_hall_difFF  CONCERT_HALL  sweep  13  3.5=FF
+
+# Predelay.
+s_concert_hall_pd40  CONCERT_HALL  sweep  13  1.6=40
+s_concert_hall_pdA0  CONCERT_HALL  sweep  13  1.6=A0
+
+# Mode enhancement (delay modulation) off, and decay optimisation off.
+s_concert_hall_modeoff_sine  CONCERT_HALL  sine1k  6  opt=40:00
+s_concert_hall_modeoff_swp   CONCERT_HALL  impulse  10  opt=40:00
+s_plate_modeoff_sine         PLATE         sine1k  6  opt=40:00
+s_concert_hall_dopoff_burst  CONCERT_HALL  burst  10  opt=80:00

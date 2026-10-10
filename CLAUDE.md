@@ -12,6 +12,10 @@ GUI libraries (same constraints as Acidus/Gritbaal).
   change a law or a constant, change the spec in the same commit, with its evidence tag
   ([S] sourced, [I] inferred, [D] default, [A] added feature).
 - `docs/reference/` holds the original research; read it only to re-check evidence.
+- Tearwash 225 (the Lexicon 224-family reverb, own plugin and Tannhäuser's reverb): spec in
+  `docs/tearwash/`, plan in `docs/tearwash/PLAN.md`. ROM images in `training/lex/` and the
+  BlueBox emulator are reference-only: oracle and analysis tools under `build/`, never committed,
+  never in a plugin (`docs/tearwash/01_ARCHITECTURE.md` §7). Oracle: `tools/oracle/`.
 - Parameters: `src/core/Params.cpp` is the single source of truth, mirrored in
   `docs/spec/04_PARAMETERS.md`. Never renumber ids or rename keys (state and presets use
   them); only append.
