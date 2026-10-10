@@ -175,6 +175,9 @@ void SynthEngine::startVoice(Voice& v, int key, double velocity) {
     lastPlayedSemis_ = key;
     havePlayed_ = true;
     v.scoop = -2.0 * params_[P_TOUCH_BEND] * velocity;
+    // A new note starts unbent; struck during a ribbon touch it follows the ribbon from here.
+    v.ribbonTarget = v.ribbonSm = 0.0;
+    v.ribbonBase = ribbonTouched_ ? -12.0 * params_[P_RIBBON] : 0.0;
     for (int l = 0; l < 2; ++l) {
         const uint32_t base = l == 0 ? kLine1Base : kLine2Base;
         v.line[l].feg.gateOn(params_[base + LP_IL], params_[base + LP_AL]);
@@ -250,7 +253,7 @@ double SynthEngine::lineFrequency(int vi, int l) const {
     const LineControls& c = lc_[l];
     const CardCalibration& cal = v.line[l].cal;
     const double drift = params_[P_DRIFT];
-    const double semis = v.smoothSemis + v.scoop + params_[P_PITCH] + ribbonSm_ + bendNorm_ * params_[P_BEND_RANGE];
+    const double semis = v.smoothSemis + v.scoop + params_[P_PITCH] + ribbonSm_ + v.ribbonSm + bendNorm_ * params_[P_BEND_RANGE];
     const double detune = (l == 1) ? 12.0 * params_[P_DETUNE] * params_[P_DETUNE] : 0.0;
     return (semisToHz(semis) + detune) * c.feetRatio * (1.0 + cal.scaleErr * drift)
            + cal.offsetHz * drift + v.line[l].drift.x * drift;
@@ -349,8 +352,25 @@ void SynthEngine::updateControls(int hostSamples) {
             s.qaL = 5.0 * std::pow(0.1, c.vqL * 0.1) * qScale;
         }
     }
-    // Ribbon: smoothed ~2 ms (spec 03 §7). The parameter is -1..1 = +-1 octave.
-    ribbonSm_ += (12.0 * params_[P_RIBBON] - ribbonSm_) * (1.0 - std::exp(-blockSec / 0.002));
+    // Ribbon (spec 03 §7), -1..1 = +-1 octave, smoothed ~2 ms. While it is touched every
+    // sounding voice follows it from where it was; on release the voices keep their bend
+    // (Ribbon Hold [A]) or return (the CS-80). New notes start unbent. A ribbon moved
+    // without a touch (host automation) bends all voices globally, as before.
+    const double ribbonC = 1.0 - std::exp(-blockSec / 0.002);
+    const bool touch = params_[P_RIBBON_TOUCH] >= 0.5;
+    const double r = 12.0 * params_[P_RIBBON];
+    if (touch && !ribbonTouched_) {
+        for (auto& v : voices_) v.ribbonBase = v.ribbonTarget - r;
+    }
+    if (!touch && ribbonTouched_ && params_[P_RIBBON_HOLD] < 0.5) {
+        for (auto& v : voices_) v.ribbonTarget = 0.0;
+    }
+    ribbonTouched_ = touch;
+    for (auto& v : voices_) {
+        if (touch && (v.gate || v.active())) v.ribbonTarget = v.ribbonBase + r;
+        v.ribbonSm += (v.ribbonTarget - v.ribbonSm) * ribbonC;
+    }
+    ribbonSm_ += ((touch ? 0.0 : r) - ribbonSm_) * ribbonC;
 }
 
 // --- Voice rendering -------------------------------------------------------------------
@@ -381,7 +401,7 @@ double SynthEngine::renderVoiceSample(Voice& v, int vi, double noise, double sub
     const double drift = params_[P_DRIFT];
     if (updateFilters_) {
         // Key voltage and VCO frequency, once per host sample.
-        const double kvSemis = v.smoothSemis + params_[P_PITCH] + ribbonSm_ + bendNorm_ * params_[P_BEND_RANGE];
+        const double kvSemis = v.smoothSemis + params_[P_PITCH] + ribbonSm_ + v.ribbonSm + bendNorm_ * params_[P_BEND_RANGE];
         v.fKv = semisToHz(kvSemis);
         // VCO-only exponential modulators: sub-osc vibrato (+ touch depth, mod wheel) and scoop.
         const double vibDepth = clampd(p[P_SUB_VCO] + 0.5 * modWheel_ + p[P_TOUCH_VCO] * v.pressure, 0.0, 1.0);

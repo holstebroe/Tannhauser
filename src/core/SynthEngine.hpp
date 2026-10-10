@@ -84,6 +84,9 @@ struct Voice {
     double glissClock = 0.0;
     double smoothSemis = 60.0;     // key voltage after the YM26700 low-pass
     double scoop = 0.0;            // initial pitch bend, semitones
+    double ribbonBase = 0.0;       // ribbon bend kept from earlier touches minus this touch's start
+    double ribbonTarget = 0.0;     // this voice's ribbon bend, semitones (spec 03 §7)
+    double ribbonSm = 0.0;         // ... smoothed ~2 ms
     double kbdBrillV = 0.0, kbdLevel = 1.0;
     double fKv = 261.6, fVco = 261.6;   // updated once per host sample
     LineState line[2];
@@ -143,7 +146,8 @@ private:
 
     // Performance state.
     double bendNorm_ = 0.0, modWheel_ = 0.0;
-    double ribbonSm_ = 0.0;
+    double ribbonSm_ = 0.0;        // ribbon moved without a touch (host automation): all voices
+    bool ribbonTouched_ = false;
 
     // Global modulators.
     Rng rng_{0x7A5E};

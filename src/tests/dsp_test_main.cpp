@@ -531,6 +531,49 @@ static void testValueText() {
     CHECK(std::strcmp(buf, "Q 5.00") == 0, "T21 Res L 1 shows '%s' want 'Q 5.00'", buf);
 }
 
+static void testRibbonHold() {
+    // T22: ribbon (spec 03 §7). Touch, slide +6 st, release: with Ribbon Hold the
+    // sounding note stays bent, a new note starts unbent; with Hold off it returns.
+    const int sr = 48000;
+    for (int hold = 0; hold < 2; ++hold) {
+        SynthEngine e;
+        e.setSampleRate(sr);
+        ParamValues v = sinePatch();
+        v[P_RIBBON_HOLD] = hold;
+        setAll(e, v);
+        std::vector<float> l(4096), r(4096);
+        e.noteOn(60, 1.0);
+        e.process(l.data(), r.data(), 512);
+        const double f0 = e.lineFrequency(0, 0);
+        e.setParam(P_RIBBON_TOUCH, 1.0);
+        e.process(l.data(), r.data(), 512);
+        e.setParam(P_RIBBON, 0.5);
+        e.process(l.data(), r.data(), 4096);
+        const double bent = cents(e.lineFrequency(0, 0), f0);
+        e.setParam(P_RIBBON_TOUCH, 0.0);
+        e.setParam(P_RIBBON, 0.0);
+        e.process(l.data(), r.data(), 4096);
+        const double after = cents(e.lineFrequency(0, 0), f0);
+        e.noteOn(67, 1.0);
+        e.process(l.data(), r.data(), 4096);
+        int vNew = -1;
+        for (int i = 0; i < kNumVoices; ++i) if (e.voice(i).key == 67) vNew = i;
+        const double fresh = vNew >= 0 ? cents(e.lineFrequency(vNew, 0), 261.6256 * std::pow(2.0, 7.0 / 12.0)) : 1e9;
+        CHECK(std::fabs(bent - 600.0) < 5.0, "T22 bend while touched %.1f cents want 600", bent);
+        CHECK(std::fabs(after - (hold ? 600.0 : 0.0)) < 5.0, "T22 hold %d: after release %.1f cents", hold, after);
+        CHECK(std::fabs(fresh) < 5.0, "T22 hold %d: new note %.1f cents off (want unbent)", hold, fresh);
+        // A second touch bends the held note further from where it was.
+        if (hold) {
+            e.setParam(P_RIBBON_TOUCH, 1.0);
+            e.process(l.data(), r.data(), 512);
+            e.setParam(P_RIBBON, -0.25);
+            e.process(l.data(), r.data(), 4096);
+            CHECK(std::fabs(cents(e.lineFrequency(0, 0), f0) - 300.0) < 5.0, "T22 second touch: %.1f cents want 300",
+                  cents(e.lineFrequency(0, 0), f0));
+        }
+    }
+}
+
 static void testCpu() {
     // T15: 8 voices (16 lines), 48 kHz.
     const int sr = 48000;
@@ -573,6 +616,7 @@ int main() {
     testJitter();
     testOversamplingModes();
     testValueText();
+    testRibbonHold();
     testCpu();
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;

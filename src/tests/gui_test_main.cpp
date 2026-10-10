@@ -5,6 +5,7 @@
 
 #include "clap/TannhauserClap.hpp"
 #include "gui/GuiWindow.hpp"
+#include "gui/PanelRenderer.hpp"
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -92,6 +93,26 @@ int main(int argc, char** argv) {
         CHECK(hit == static_cast<int>(i), "control %zu (%s) hit-tests to %d", i, c.label, hit);
         CHECK(c.x >= 0 && c.y >= 0 && c.x + c.w <= PanelLayout::kWidth && c.y + c.h <= PanelLayout::kHeight,
               "control %zu (%s) outside the window", i, c.label);
+    }
+
+    // Printed names fit their column at the one label size (spec 06: shorten, don't shrink).
+    for (const Ctl& c : L.controls) {
+        CHECK(panel::nameWidth(c.label) <= panel::nameRoom(c), "name '%s' is %.1f px wide, room %.1f",
+              c.label ? c.label : "", panel::nameWidth(c.label), panel::nameRoom(c));
+    }
+    // Every tooltip (name: value, description) fits the header readout.
+    {
+        int rx, ry, rw, rh;
+        panel::readoutBounds(rx, ry, rw, rh);
+        for (uint32_t id = 0; id < PARAM_COUNT; ++id) {
+            char val[64];
+            paramValueText(id, paramInfo(id).max, val, sizeof val, true);
+            std::string first = std::string(paramInfo(id).name) + ":  " + val, second = paramDescription(id);
+            for (auto* t : { &first, &second }) for (auto& ch : *t) if (ch >= 'a' && ch <= 'z') ch = static_cast<char>(ch - 32);
+            CHECK(panel::readoutWidth(first, true) <= rw - 8 && panel::readoutWidth(second, false) <= rw - 8,
+                  "tooltip of %s too wide (%.0f / %.0f px, room %d)", paramInfo(id).name,
+                  panel::readoutWidth(first, true), panel::readoutWidth(second, false), rw - 8);
+        }
     }
 
     // Slider drag: line I LPF up.
@@ -202,6 +223,14 @@ int main(int argc, char** argv) {
     // Render a few frames with hover to exercise the incremental path.
     gui.handleMouseMove(140, 100);
     gui.renderFrame();
+    // The snapshot hovers line I IL, so it shows a two-line tooltip.
+    {
+        const Ctl* il = nullptr;
+        for (const Ctl& c : L.controls) if (c.param == static_cast<int>(lineParam(0, LP_IL))) il = &c;
+        if (il) gui.handleMouseMove(il->x + il->w / 2, il->y + il->h / 2);
+        gui.renderFrame();
+        CHECK(gui.readoutText().find('\n') != std::string::npos, "tooltip has a description line: '%s'", gui.readoutText().c_str());
+    }
     if (argc > 1) writePpm(gui, argv[1]);
 
     p.destroyGuiWindow();

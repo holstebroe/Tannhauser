@@ -33,6 +33,11 @@ void drawReadout(Graphics& g, const std::string& text);
 // Region (logical px) a control repaints, including shadows.
 void controlBounds(const Ctl& c, int& x, int& y, int& w, int& h);
 void readoutBounds(int& x, int& y, int& w, int& h);
+// Width of a readout line (first = the name/value line) and of a control name, and
+// the room a control's name has (spec 06: names are short, one size).
+float readoutWidth(const std::string& line, bool first);
+float nameWidth(const char* text);
+float nameRoom(const Ctl& c);
 // Tone selector button names (two lines).
 const char* toneButtonTop(int row, int button);
 const char* toneButtonBottom(int row, int button);

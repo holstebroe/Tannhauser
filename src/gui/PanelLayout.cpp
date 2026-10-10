@@ -43,11 +43,11 @@ const Col kVca[] = {
     { LP_LEVEL, CtlType::Slider, "LEVEL", kCapWhite, "10", "0" },
 };
 const Col kInit[] = {
-    { LP_INIT_BRILL, CtlType::Slider, "BRILLIANCE", kCapGreen, "10", "0" },
+    { LP_INIT_BRILL, CtlType::Slider, "BRILL.", kCapGreen, "10", "0" },
     { LP_INIT_LEVEL, CtlType::Slider, "LEVEL", kCapWhite, "10", "0" },
 };
 const Col kAfter[] = {
-    { LP_AFTER_BRILL, CtlType::Slider, "BRILLIANCE", kCapGreen, "10", "0" },
+    { LP_AFTER_BRILL, CtlType::Slider, "BRILL.", kCapGreen, "10", "0" },
     { LP_AFTER_LEVEL, CtlType::Slider, "LEVEL", kCapWhite, "10", "0" },
 };
 
@@ -109,7 +109,7 @@ PanelLayout build() {
     paddleGroup(86, "SUB OSCILLATOR", { { P_SUB_SPEED, "SPEED", nullptr, nullptr }, { P_SUB_VCO, "VCO", nullptr, nullptr },
                                          { P_SUB_VCF, "VCF", nullptr, nullptr }, { P_SUB_VCA, "VCA", nullptr, nullptr } },
                 kCapGrey, 66, mt, 152);
-    paddleGroup(300, "TOUCH RESPONSE", { { P_TOUCH_BEND, "PITCHBEND", nullptr, "INITIAL" }, { P_TOUCH_SPEED, "SPEED", nullptr, nullptr },
+    paddleGroup(300, "TOUCH RESPONSE", { { P_TOUCH_BEND, "P.BEND", nullptr, "INITIAL" }, { P_TOUCH_SPEED, "SPEED", nullptr, nullptr },
                                          { P_TOUCH_VCO, "VCO", nullptr, nullptr }, { P_TOUCH_VCF, "VCF", nullptr, nullptr } },
                 kCapGrey, 0, mt, 152);
     L.captions.push_back({ paddleX(300, 0, 2), mt + 137.f, "SUB-OSC AFTER", 4.5f });
@@ -132,10 +132,10 @@ PanelLayout build() {
     L.captions.push_back({ 0.5f * (paddleX(798, 0, 2) + paddleX(798, 0, 3)), mt + 17.f, "LEVEL", 6.f });
     paddleGroup(944, "RING MODULATOR", { { P_RM_ATTACK, "ATTACK", nullptr, nullptr }, { P_RM_DECAY, "DECAY", nullptr, nullptr },
                                           { P_RM_DEPTH, "DEPTH", nullptr, nullptr }, { P_RM_SPEED, "SPEED", nullptr, nullptr },
-                                          { P_RM_MOD, "MODULATION", nullptr, nullptr } },
+                                          { P_RM_MOD, "MOD.", nullptr, nullptr } },
                 kCapGrey, 0, mt, 152);
-    paddleGroup(1124, "", { { P_DETUNE, "DETUNE II", nullptr, nullptr }, { P_MIX, "MIX", "I", "II" },
-                            { P_BRILLIANCE, "BRILLIANCE", nullptr, nullptr }, { P_RESONANCE, "RESONANCE", nullptr, nullptr } },
+    paddleGroup(1124, "", { { P_DETUNE, "DETUNE", nullptr, nullptr }, { P_MIX, "MIX", "I", "II" },
+                            { P_BRILLIANCE, "BRILL.", nullptr, nullptr }, { P_RESONANCE, "RES.", nullptr, nullptr } },
                 kCapWhite, 0, mt, 152);
     L.frames.push_back({ 1272, mt + 2, 66, 146, "PITCH" });
     L.controls.push_back({ CtlType::Knob, P_PITCH, 1283, mt + 50, 44, 44, "", kCapBlack, 0, nullptr });
@@ -146,14 +146,14 @@ PanelLayout build() {
     L.frames.push_back({ 22, bt + 2, 122, 146, "SUSTAIN" });
     // Left-hand panel as on the CS-80: the time controls are sliders, LONG at the top.
     L.controls.push_back({ CtlType::Rocker, P_SUS_MODE, 32, bt + 52, 20, 40, "", kCapBlack, 0, nullptr, "I", "II", 0 });
-    L.controls.push_back({ CtlType::Rocker, P_SUS_PEDAL, 68, bt + 52, 20, 40, "FOOT SW.", kCapBlack, 0, nullptr });
+    L.controls.push_back({ CtlType::Rocker, P_SUS_PEDAL, 68, bt + 52, 20, 40, "PEDAL", kCapBlack, 0, nullptr });
     L.controls.push_back({ CtlType::Slider, P_SUS_TIME, 102, bt + 30, 24, 104, "TIME", kCapYellow, 0, nullptr, "LONG", "SHORT", 0 });
     L.frames.push_back({ 150, bt + 2, 84, 146, "PORTA/GLISS" });
     L.controls.push_back({ CtlType::Rocker, P_PORTA_MODE, 160, bt + 52, 20, 40, "", kCapBlack, 0, nullptr, "PORTA.", "GLISS.", 0 });
     L.controls.push_back({ CtlType::Slider, P_PORTA_TIME, 195, bt + 30, 24, 104, "TIME", kCapWhite, 0, nullptr, "LONG", "SHORT", 0 });
     L.frames.push_back({ 240, bt + 2, 150, 146, "CHORUS / TREMOLO" });
     L.controls.push_back({ CtlType::Rocker, P_CHORUS, 250, bt + 52, 20, 40, "CHORUS", kCapBlack, 0, nullptr });
-    L.controls.push_back({ CtlType::Rocker, P_TREMOLO, 286, bt + 52, 20, 40, "TREMOLO", kCapBlack, 0, nullptr });
+    L.controls.push_back({ CtlType::Rocker, P_TREMOLO, 286, bt + 52, 20, 40, "TREM.", kCapBlack, 0, nullptr });
     L.controls.push_back({ CtlType::Paddle, P_FX_SPEED, 322, bt + 30, 22, 106, "SPEED", kCapGrey, 0, nullptr });
     L.controls.push_back({ CtlType::Paddle, P_FX_DEPTH, 358, bt + 30, 22, 106, "DEPTH", kCapGrey, 0, nullptr });
     L.frames.push_back({ 396, bt + 2, 212, 146, "REVERB / EXTRA" });

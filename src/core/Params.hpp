@@ -93,6 +93,8 @@ enum GlobalParam : uint32_t {
     P_GAIN,           // per-preset loudness trim [A], appended 2026-10-09
     P_ENV_LONG,       // Long envelope mode [A], appended 2026-10-09
     P_OVERSAMPLE,     // 4x oversampling [A] (plan 1.10), appended 2026-10-09
+    P_RIBBON_TOUCH,   // ribbon is being touched (GUI), appended 2026-10-10
+    P_RIBBON_HOLD,    // bent notes keep the ribbon pitch on release [A], appended 2026-10-10
     PARAM_COUNT
 };
 
@@ -135,6 +137,8 @@ int paramIdFromKey(const char* key);
 // the envelope time ranges shown).
 void paramValueText(uint32_t id, double value, char* buf, size_t cap, bool longEnv = false);
 double clampParam(uint32_t id, double v);
+// One-line description for tooltips (spec 04).
+const char* paramDescription(uint32_t id);
 // Parses a value typed in the units paramValueText shows (the inverse mapping).
 bool paramTextToValue(uint32_t id, const char* text, double* out, bool longEnv = false);
 

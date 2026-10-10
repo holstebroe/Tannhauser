@@ -74,6 +74,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2.5 | Initial pitch-bend scoop | ✅ |
 | 2.6 | Keyboard control brilliance/level (KBC) | ✅ |
 | 2.7 | Ribbon (relative), MIDI bend, master pitch, detune, mix, brilliance, resonance | ✅ |
+| 2.16 | Ribbon Hold [A] (default on): bent notes keep their pitch on release, new notes unbent; Hold off = CS-80 return (03 §7, T22) | ✅ |
 | 2.8 | Sustain I/II, sustain time, pedal | ✅ |
 | 2.9 | Ring modulator with monophonic AD envelope | ✅ |
 | 2.10 | Chorus/tremolo (BBD-style, option A) | 🟡 values are defaults; OE1/OE2 pages unread |
@@ -114,6 +115,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 5.3 | Tooltip/value readout in the header | ✅ |
 | 5.4 | Ribbon strip and clickable keyboard | ✅ |
 | 5.5 | HiDPI scaling (CLAP `set_scale`), resizable window | ⬜ |
+| 5.7 | Tooltips: full parameter names and a description line from the Arturia manual's wording; short panel names at one size (GUI test checks widths) | ✅ |
 | 5.6 | CS-80 printing: names under the programming sliders, scale-end legends, RES H/L, VCF LEVEL, waveform symbols, keyboard-control/touch captions, cap colours from photos; sustain/porta time as LONG/SHORT sliders | ✅ |
 
 ### WP6 — Validation (spec 07)
@@ -158,6 +160,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
 | 2026-10-09 | Factory time polarity follows compendium §14.6 (inverted) until P-1 is resolved |
 | 2026-10-09 | P-1 plausibility test confirms the inverted polarity (62/74 vs 33/74); kept |
 | 2026-10-09 | Time and rate ranges taken from the Arturia CS-80 V manual (§5.2, documented against the hardware): envelopes, sub-osc, PWM LFO, ring mod; global Resonance bipolar. Library presets and defaults remapped to keep their voiced times; factory tones follow the new laws. Arturia's filter cutoff ranges not adopted (P-3) |
+| 2026-10-10 | Ribbon Hold defaults to on (user's call): an [A] behaviour as default, the CS-80's return-to-pitch is the off position |
 | 2026-10-09 | WP1 analog-modelling pass (prompted by Arturia's TAE claims): nonlinear OTA filter, cycle jitter, 4-point BLEP, optional 4×. Presets are not compensated for model changes, only loudness-refitted (user's call) |
 | 2026-10-09 | Long envelope mode added as a stored per-patch switch [A] (global setting in Arturia's emulation) |
 | 2026-10-09 | Loudness: presets are trimmed by an added, stored Patch Gain (not by editing decoded line levels) to −18 LUFS max-momentary |
@@ -188,5 +191,7 @@ Output: `build/tannhauser.clap`. `cmake --build build --target deploy_clap` copi
   loudness-refitted (median −1.3 dB). 1.11 left for scope data. dsp test 267 checks.
 - 2026-10-10 — Value display in circuit units like the Arturia manual (3.7, T21); panel
   printing and cap colours from photos of the CS-80 (5.6): duplicate RES/LEVEL names fixed.
+- 2026-10-10 — Ribbon Hold (2.16, params 98/99, T22); tooltips with full names and
+  descriptions, shorter panel names at one size (5.7).
 - Next suggested steps: P-1 confirmation with a reference recording; 1.5 nonlinear SVF;
   1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

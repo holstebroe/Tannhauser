@@ -47,21 +47,19 @@ void waveSymbol(Graphics& g, const char* name, float cx, float capTop, float cap
     }
 }
 
-// A control name: shrunk to fit maxW, "~SQ"-style waveform symbols, "RES_H" with a subscript.
-void nameLabel(Graphics& g, const char* text, float cx, float capTop, float maxW, float cap = kLabelCap, uint32_t ink = kSilk) {
+// A control name at the one label size: "~SQ"-style waveform symbols, "RES_H" with a
+// subscript. Names are kept short enough for their column (nameWidth, GUI test).
+void nameLabel(Graphics& g, const char* text, float cx, float capTop, float cap = kLabelCap, uint32_t ink = kSilk) {
     if (!text || !*text) return;
     if (text[0] == '~') { waveSymbol(g, text + 1, cx, capTop, cap, ink); return; }
     char main[32];
     const char* sub = std::strchr(text, '_');
     const size_t n = sub ? static_cast<size_t>(sub - text) : std::strlen(text);
     std::snprintf(main, sizeof main, "%.*s", static_cast<int>(n), text);
-    const float subCap = cap * 0.7f;
-    auto width = [&](float c) { return textWidth(kLabelFont, main, c) + (sub ? 1.f + textWidth(kLabelFont, sub + 1, c * 0.7f) : 0.f); };
-    while (cap > 4.f && width(cap) > maxW) cap -= 0.25f;
-    const float w = width(cap);
+    const float w = nameWidth(text);
     drawText(g, kLabelFont, main, cx - w * 0.5f, capTop, cap, ink, 0.08f);
     if (sub) drawText(g, kLabelFont, sub + 1, cx - w * 0.5f + textWidth(kLabelFont, main, cap) + 1.f, capTop + cap * 0.55f,
-                      subCap * cap / kLabelCap, ink, 0.08f);
+                      cap * 0.7f, ink, 0.08f);
 }
 
 void fillRect(Graphics& g, float x0, float y0, float x1, float y1, uint32_t argb) {
@@ -238,8 +236,7 @@ void drawStatic(Graphics& g, const PanelLayout& L) {
             case CtlType::Paddle: {
                 float sx, top, bottom;
                 sliderGeometry(c, sx, top, bottom);
-                const float nameW = c.nameY ? 42.f : 33.f;
-                nameLabel(g, c.label, cx, c.nameY ? static_cast<float>(c.nameY) : c.y - 13.f, nameW);
+                nameLabel(g, c.label, cx, c.nameY ? static_cast<float>(c.nameY) : c.y - 13.f);
                 drawTicks(g, c.x + 3.f, top, bottom, isBipolar(c.param));
                 drawSlot(g, sx, top - 3.f, bottom + 3.f, c.type == CtlType::Slider ? 5.f : 7.f);
                 if (c.type == CtlType::Paddle) {
@@ -254,8 +251,8 @@ void drawStatic(Graphics& g, const PanelLayout& L) {
                 break;
             }
             case CtlType::Rocker:
-                if (c.nameY) nameLabel(g, c.label, cx, static_cast<float>(c.nameY), 42.f);
-                else nameLabel(g, c.label, cx, c.y - 13.f - (c.top ? 6.f : 0.f), 34.f);
+                if (c.nameY) nameLabel(g, c.label, cx, static_cast<float>(c.nameY));
+                else nameLabel(g, c.label, cx, c.y - 13.f - (c.top ? 6.f : 0.f));
                 roundRect(g, c.x - 2.f, c.y - 2.f, c.x + c.w + 2.f, c.y + c.h + 2.f, 3.f,
                           [](float, float, float) { return 0xFF050506u; });
                 if (c.top) label(g, c.top, cx, c.y - 10.f, 4.5f, kSilkDim);
@@ -292,7 +289,27 @@ void controlBounds(const Ctl& c, int& x, int& y, int& w, int& h) {
     if (c.type == CtlType::Lever) { x = c.x + 1; w = c.w + 1; }
 }
 
-void readoutBounds(int& x, int& y, int& w, int& h) { x = 860; y = 6; w = 470; h = 24; }
+void readoutBounds(int& x, int& y, int& w, int& h) { x = 350; y = 4; w = 980; h = 28; }
+
+float nameWidth(const char* text) {
+    if (!text || !*text) return 0.f;
+    if (text[0] == '~') return kLabelCap * 1.6f;
+    char main[32];
+    const char* sub = std::strchr(text, '_');
+    const size_t n = sub ? static_cast<size_t>(sub - text) : std::strlen(text);
+    std::snprintf(main, sizeof main, "%.*s", static_cast<int>(n), text);
+    return textWidth(kLabelFont, main, kLabelCap) + (sub ? 1.f + textWidth(kLabelFont, sub + 1, kLabelCap * 0.7f) : 0.f);
+}
+
+float nameRoom(const Ctl& c) {
+    // Column pitch minus a small gap: programming rows 44, paddle groups 34, rockers 36;
+    // a lever has its own width.
+    if (c.type == CtlType::Lever) return static_cast<float>(c.w);
+    if (c.nameY) return 42.f;
+    return c.type == CtlType::Rocker ? 33.f : 31.f;
+}
+
+float readoutWidth(const std::string& line, bool first) { return textWidth(kLabelFont, line.c_str(), first ? 7.f : 5.5f); }
 
 static void drawSliderCap(Graphics& g, const Ctl& c, const CtlState& st) {
     float cx, top, bottom;
@@ -541,8 +558,16 @@ void drawReadout(Graphics& g, const std::string& text) {
     int x, y, w, h;
     readoutBounds(x, y, w, h);
     if (text.empty()) return;
-    const float tw = textWidth(kLabelFont, text.c_str(), 7.f);
-    drawText(g, kLabelFont, text.c_str(), x + w - tw - 4.f, y + 8.f, 7.f, 0xFF7DF29A);
+    // "NAME: VALUE" and, after a newline, a one-line description (smaller, dimmer).
+    const size_t nl = text.find('\n');
+    const std::string first = text.substr(0, nl);
+    const float tw = readoutWidth(first, true);
+    drawText(g, kLabelFont, first.c_str(), x + w - tw - 4.f, y + 3.f, 7.f, 0xFF7DF29A);
+    if (nl != std::string::npos) {
+        const std::string second = text.substr(nl + 1);
+        const float dw = readoutWidth(second, false);
+        drawText(g, kLabelFont, second.c_str(), x + w - dw - 4.f, y + 15.f, 5.5f, 0xC07DF29A);
+    }
 }
 
 } // namespace panel

@@ -154,6 +154,8 @@ void GuiWindow::updateReadout() {
         char val[64];
         plugin_->paramsValueToText(static_cast<clap_id>(c.param), plugin_->paramValue(static_cast<clap_id>(c.param)), val, sizeof(val));
         readout_ = std::string(paramInfo(static_cast<uint32_t>(c.param)).name) + ":  " + val;
+        const char* desc = paramDescription(static_cast<uint32_t>(c.param));
+        if (desc && *desc) readout_ += std::string("\n") + desc;
     } else if (c.type == CtlType::ToneButton) {
         const int row = c.aux / 16, b = c.aux % 16;
         if (b < 11) readout_ = std::string("LOAD FACTORY TONE INTO LINE ") + (row == 0 ? "I: " : "II: ") + kFactoryToneNames[row][b];
@@ -372,7 +374,13 @@ void GuiWindow::handleMouseDown(int x, int y, bool shift) {
         case CtlType::Ribbon:
             beginEdit(i);
             ribbonTouch_ = static_cast<double>(x - c.x) / c.w;
-            if (plugin_) plugin_->onParamValueFromGui(static_cast<clap_id>(c.param), 0.0);
+            if (plugin_) {
+                // Touch first: the engine then bends the sounding notes relative to here (spec 03 §7).
+                plugin_->onBeginEditFromGui(P_RIBBON_TOUCH);
+                plugin_->onParamValueFromGui(P_RIBBON_TOUCH, 1.0);
+                plugin_->onEndEditFromGui(P_RIBBON_TOUCH);
+                plugin_->onParamValueFromGui(static_cast<clap_id>(c.param), 0.0);
+            }
             break;
         case CtlType::Keyboard: {
             const int k = keyAt(x, y);
@@ -435,6 +443,10 @@ void GuiWindow::handleMouseUp() {
     if (active_ >= 0) {
         const Ctl& c = panelLayout().controls[static_cast<size_t>(active_)];
         if (c.type == CtlType::Ribbon && plugin_) {
+            // Release the touch before the ribbon returns to 0, so held bends stay.
+            plugin_->onBeginEditFromGui(P_RIBBON_TOUCH);
+            plugin_->onParamValueFromGui(P_RIBBON_TOUCH, 0.0);
+            plugin_->onEndEditFromGui(P_RIBBON_TOUCH);
             plugin_->onParamValueFromGui(static_cast<clap_id>(c.param), 0.0);
             ribbonTouch_ = -1.0;
         }
