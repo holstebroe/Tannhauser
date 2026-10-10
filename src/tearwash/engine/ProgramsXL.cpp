@@ -5,6 +5,7 @@
 #include "Programs.hpp"
 
 #include <algorithm>
+#include <string>
 
 namespace tearwash {
 
@@ -158,8 +159,37 @@ void ConcertHall::tick(CoreState& s) {
     s.mem.advance();
 }
 
+// Offsets at the smallest SIZE; SIZE maps them (03 §3) [R].
+ConcertHall::Offsets ConcertHall::templateOffsets() {
+    Offsets t;
+    t.carry = 128; t.lpL = 6006; t.lpR = 35770;
+    const uint16_t apL[4][2] = { { 1756, 2242 }, { 1714, 2395 }, { 2481, 3454 }, { 2524, 3138 } };
+    const uint16_t apR[4][2] = { { 4255, 4763 }, { 4212, 4855 }, { 4980, 6000 }, { 5023, 5665 } };
+    for (int i = 0; i < 4; ++i) for (int k = 0; k < 2; ++k) { t.apL[i][k] = apL[i][k]; t.apR[i][k] = apR[i][k]; }
+    t.tankL = 2567; t.tankR = 5066; t.tankOutL = 2934; t.tankOutR = 5493;
+    t.outB1 = 4861; t.outB2 = 3463; t.outD1 = 2464;
+    t.xoInL = 6004; t.xoInR = 3847; t.xoL = 258; t.xoR = 256;
+    t.preL = 6007; t.preR = 35771; t.trebleL = 260; t.trebleR = 262;
+    t.dif1L[0] = 277; t.dif1L[1] = 516; t.dif1R[0] = 911; t.dif1R[1] = 1116;
+    t.dif2L[0] = 518; t.dif2L[1] = 910; t.dif2R[0] = 1117; t.dif2R[1] = 1446;
+    t.decOutL = 1447; t.decOutR = 3847;
+    t.outA[0] = 2405; t.outA[1] = 4903; t.outA[2] = 3591;
+    t.outC[0] = 4972; t.outC[1] = 3921; t.outC[2] = 2473; t.outC[3] = 6002;
+    t.echo[0] = 6007; t.echo[1] = 35771; t.echo[2] = 35771; t.echo[3] = 6007;
+    t.xferA = 5429; t.xferC = 2870; t.xferAOut = 0;
+    return t;
+}
+
+static law::SizeMap concertHallSize() {
+    law::SizeMap m;
+    m.active = true;
+    m.t0 = 0x05A7; m.t1 = 0x1774; m.t2 = 0x05A7; m.t3 = 0x05A7; m.f = 0x40; m.lo = 0x0A; m.hi = 0x29;
+    return m;
+}
+
 XlRegs ConcertHall::factory() const {
     XlRegs r;
+    r.size = 0xFE;
     const uint8_t p1[6] = { 0x84, 0x5F, 0x20, 0xB6, 0x55, 0x00 };   // LF, MID, XOVER, TREBLE, DEPTH, PREDELAY
     const uint8_t p3[6] = { 0x84, 0x84, 0x80, 0xD0, 0x40, 0x02 };   // LF/MID STOP, CHORUS, HF BW, DIFFUSION, DEFINITION
     const uint8_t p4[6] = { 0x02, 0x02, 0x02, 0x02, 0x00, 0x00 };   // pre-echo LEVELs
@@ -215,20 +245,404 @@ void ConcertHall::applyControls(const XlRegs& r) {
     c.outA[2] = c.outC[2] = -curve4(kD0, dep);
     c.outA[3] = c.outC[3] = curve4(kD3, dep);
 
-    // PREDELAY (millisecond law, 34 samples per ms, limited by the memory map).
-    int pd = 34 * predelayMs(r.at(1, 6));
-    if (pd > 22780) pd = 22780;
-    o.preL = static_cast<uint16_t>(19680 + pd);
-    o.preR = static_cast<uint16_t>(42608 + pd);
+    // SIZE maps every offset; the delay builders then add their delays to S(base) + 1.
+    law::SizeMap sm = concertHallSize();
+    sm.set(r.size);
+    const Offsets t = templateOffsets();
+    const uint16_t* src = reinterpret_cast<const uint16_t*>(&t);
+    uint16_t* dst = reinterpret_cast<uint16_t*>(&o);
+    uint16_t keepMod[4] = { o.modL[0], o.modL[1], o.modR[0], o.modR[1] };
+    for (size_t i = 0; i < sizeof(Offsets) / sizeof(uint16_t); ++i) dst[i] = sm(src[i]);
+    o.modL[0] = keepMod[0]; o.modL[1] = keepMod[1]; o.modR[0] = keepMod[2]; o.modR[1] = keepMod[3];
+    auto base = [&](uint16_t x) { return static_cast<int>(sm(x)) + 1; };
+
+    // PREDELAY (millisecond law, 34 samples per ms; the register is clamped to fit the map).
+    const int pd = 34 * predelayMs(clampPredelay(r.at(1, 6), sm.delayLimit()));
+    o.preL = static_cast<uint16_t>(base(t.preL) + pd);
+    o.preR = static_cast<uint16_t>(base(t.preR) + pd);
 
     // Pre-echoes: LEVELs, DELAYs (34 samples per step) with FINE; the decay taps (4 per step).
     for (int i = 0; i < 4; ++i) c.echo[i] = r.at(4, i + 1) >> 2;
-    o.echo[0] = static_cast<uint16_t>(19680 + fineDelay(r.at(5, 1), r.at(6, 1), 34));
-    o.echo[1] = static_cast<uint16_t>(42608 + fineDelay(r.at(5, 2), r.at(6, 2), 34));
-    o.echo[2] = static_cast<uint16_t>(42608 + fineDelay(r.at(5, 3), r.at(6, 3), 34));
-    o.echo[3] = static_cast<uint16_t>(19680 + fineDelay(r.at(5, 4), r.at(6, 4), 34));
-    o.decOutL = static_cast<uint16_t>(1448 + fineDelay(r.at(5, 5), r.at(6, 5), 4));
-    o.outC[1] = static_cast<uint16_t>(11344 + fineDelay(r.at(5, 6), r.at(6, 6), 4));
+    o.echo[0] = static_cast<uint16_t>(base(t.echo[0]) + fineDelay(r.at(5, 1), r.at(6, 1), 34));
+    o.echo[1] = static_cast<uint16_t>(base(t.echo[1]) + fineDelay(r.at(5, 2), r.at(6, 2), 34));
+    o.echo[2] = static_cast<uint16_t>(base(t.echo[2]) + fineDelay(r.at(5, 3), r.at(6, 3), 34));
+    o.echo[3] = static_cast<uint16_t>(base(t.echo[3]) + fineDelay(r.at(5, 4), r.at(6, 4), 34));
+    o.decOutL = static_cast<uint16_t>(base(t.decOutL) + fineDelay(r.at(5, 5), r.at(6, 5), 4));
+    o.outC[1] = static_cast<uint16_t>(base(t.outC[1]) + fineDelay(r.at(5, 6), r.at(6, 6), 4));
+}
+
+} // namespace tearwash
+
+namespace tearwash {
+
+void Plate::tick(CoreState& s) {
+    Pipe p{ s, a_, r_ };
+    Mac& a = a_;
+    int16_t x, d, t, held;
+
+    // ---- Left half --------------------------------------------------------------------------
+    // Input gain, then the input allpass (x from the input line).
+    p.next();
+    a.add(s.inL, c.in);
+    x = p.tap(o.inTapL);
+    p.next();
+    a.add(x, c.pre);
+    d = p.tap(o.ap1L[1]);
+    a.add(d, c.ap1G);
+    p.store(o.inL, r_);
+    p.next();
+    a.add(d, c.ap1K);
+    p.store(o.ap1L[0], r_);
+    a.add(x, -c.ap1G);
+    // One-pole, continuing into the second allpass.
+    x = p.tap(o.lpL + 1);
+    p.next();
+    a.add(x, c.lpFb);
+    a.add(r_, c.lpIn);
+    d = p.tap(o.ap2L[1]);
+    r_ = a.result();
+    a.add(d, c.ap2G);
+    p.store(o.lpL, r_);
+    x = r_;
+    p.next();
+    a.add(d, c.ap2K);
+    p.store(o.ap2L[0], r_);
+    a.add(x, -c.ap2G);
+    p.allpass(o.ap3L[0], o.ap3L[1], o.ap2L[1], o.ap3L[0], c.ap3G, c.ap3K);
+    // Transfer tap, store the input section's output.
+    t = p.tap(o.xferIn);
+    p.next();
+    a.add(t, 32);
+    p.store(o.ap3L[1], r_);
+    // Tank: cross-feed into the first one-pole, the second one-pole.
+    t = p.tap(o.crossL);
+    p.next();
+    a.add(t, c.trebleIn);
+    d = p.tap(o.damp1L + 1);
+    a.add(d, c.trebleFb);
+    p.store(o.xferOut, r_);
+    p.next();
+    a.add(d, c.xoIn);
+    a.add(p.tap(o.damp2L + 1), c.xoFb);
+    p.store(o.damp1L, r_);
+    p.next();
+    a.add(d, c.mid);
+    p.store(o.damp2L, r_);
+    a.add(r_, c.lfDiff);
+    held = p.tap(o.ap3L[1]);                // input section output, held for the mix below
+    a.add(held, -32);
+    // Feedback allpass.
+    d = p.tap(o.fbL[1]);
+    r_ = a.result();
+    a.add(d, c.fbG);
+    x = r_;
+    p.next();
+    a.add(d, c.fbK);
+    p.store(o.fbL[0], r_);
+    a.add(x, -c.fbG);
+    // Fractional tap (Mode Enhancement) as d of the first tank allpass.
+    t = p.tap(o.modL[0]);
+    p.next();
+    a.add(t, c.modW);
+    a.add(p.tap(o.modL[1]), 32 - c.modW);
+    p.store(o.fbL[1], r_);
+    x = p.tap(o.tank1L);
+    p.next();
+    a.add(x, 32);
+    d = r_;
+    a.add(d, c.t1G);
+    p.next();
+    a.add(d, c.t1K);
+    p.store(o.tank1L, r_);
+    a.add(x, -c.t1G);
+    p.allpass(o.tank2L[0], o.tank2L[1], o.tankOutL, o.tank2L[0], c.t2G, c.t2K);
+    // Tank mix with the held input-section output.
+    t = p.tap(o.mixL[0]);
+    p.next();
+    a.add(t, c.mix1);
+    p.store(o.tank2L[1], r_);
+    a.add(held, 32);
+    t = p.tap(o.mixL[1]);
+    p.next();
+    a.add(t, c.mix2L);
+    p.store(o.mixL[2], r_);
+    a.add(held, 32);
+    // Output A (= D) taps.
+    t = p.tap(o.outA[0]);
+    p.next();
+    a.add(t, c.outA[0]);
+    a.add(p.tap(o.outA[1]), c.outA[1]);
+    a.add(p.tap(o.outA[2]), c.outA[2]);
+    a.add(p.tap(o.outA[3]), c.outA[3]);
+    a.add(p.tap(o.echo[0]), c.echo[0]);
+    a.add(p.tap(o.echo[1]), c.echo[1]);
+    a.add(p.tap(o.echo[2]), c.echo[2]);
+    p.store(o.lastL, r_);
+    r_ = a.result();
+    s.dac[0] = s.dac[3] = r_;
+    r_ = a.result();
+
+    // ---- Right half -------------------------------------------------------------------------
+    p.next();
+    a.add(s.inR, c.in);
+    x = p.tap(o.inTapR);
+    p.next();
+    a.add(x, c.pre);
+    d = p.tap(o.ap1R[1]);
+    a.add(d, c.ap1G);
+    p.store(o.inR, r_);
+    p.next();
+    a.add(d, c.ap1K);
+    p.store(o.ap1R[0], r_);
+    a.add(x, -c.ap1G);
+    x = p.tap(o.lpR + 1);
+    p.next();
+    a.add(x, c.lpFb);
+    a.add(r_, c.lpIn);
+    d = p.tap(o.ap2R[1]);
+    r_ = a.result();
+    a.add(d, c.ap2G);
+    p.store(o.lpR, r_);
+    x = r_;
+    p.next();
+    a.add(d, c.ap2K);
+    p.store(o.ap2R[0], r_);
+    a.add(x, -c.ap2G);
+    p.allpass(o.ap3R[0], o.ap3R[1], o.ap2R[1], o.ap3R[0], c.ap3G, c.ap3K);
+    t = p.tap(o.crossR);
+    p.next();
+    a.add(t, c.trebleIn);
+    d = p.tap(o.damp1R + 1);
+    a.add(d, c.trebleFb);
+    p.store(o.ap3R[1], r_);
+    p.next();
+    a.add(d, c.xoIn);
+    a.add(p.tap(o.damp2R + 1), c.xoFb);
+    p.store(o.damp1R, r_);
+    p.next();
+    a.add(d, c.mid);
+    p.store(o.damp2R, r_);
+    a.add(r_, c.lfDiff);
+    a.add(p.tap(o.ap3R[1]), -32);
+    d = p.tap(o.fbR[1]);
+    r_ = a.result();
+    a.add(d, c.fbG);
+    x = r_;
+    p.next();
+    a.add(d, c.fbK);
+    p.store(o.fbR[0], r_);
+    a.add(x, -c.fbG);
+    p.allpass(o.tank1R[0], o.tank1R[1], o.fbR[1], o.tank1R[0], c.t1G, c.t1K);
+    p.allpass(o.tank2R[0], o.tank2R[1], o.tank1R[1], o.tank2R[0], c.t2G, c.t2K);
+    t = p.tap(o.mixR[0]);
+    p.next();
+    a.add(t, c.mix1);
+    p.store(o.tank2R[1], r_);
+    a.add(p.tap(o.ap3R[1]), 32);
+    t = p.tap(o.mixR[1]);
+    p.next();
+    a.add(t, c.mix2R);
+    p.store(o.mixR[2], r_);
+    a.add(p.tap(o.ap3R[1]), 32);
+    t = p.tap(o.ap3R[1]);
+    p.next();
+    a.add(t, c.outB[0]);
+    a.add(p.tap(o.outB[1]), c.outB[1]);
+    a.add(p.tap(o.outB[2]), c.outB[2]);
+    a.add(p.tap(o.outB[3]), c.outB[3]);
+    a.add(p.tap(o.echo[3]), c.echo[3]);
+    a.add(p.tap(o.echo[4]), c.echo[4]);
+    a.add(p.tap(o.echo[5]), c.echo[5]);
+    p.store(o.lastR, r_);
+    r_ = a.result();
+    s.dac[1] = s.dac[2] = r_;
+
+    s.mem.advance();
+}
+
+} // namespace tearwash
+
+namespace tearwash {
+
+Plate::Offsets Plate::templateOffsets() {
+    Offsets t;
+    t.inL = 7852; t.inR = 36694; t.inTapL = 7853; t.inTapR = 36695;
+    t.ap1L[0] = 146; t.ap1L[1] = 160; t.ap1R[0] = 572; t.ap1R[1] = 582;
+    t.lpL = 128; t.lpR = 130;
+    t.ap2L[0] = 161; t.ap2L[1] = 208; t.ap2R[0] = 583; t.ap2R[1] = 616;
+    t.ap3L[0] = 209; t.ap3L[1] = 335; t.ap3R[0] = 617; t.ap3R[1] = 706;
+    t.xferIn = 4497; t.xferOut = 0; t.crossL = 7849; t.crossR = 5631;
+    t.damp1L = 132; t.damp1R = 134; t.damp2L = 136; t.damp2R = 138;
+    t.fbL[0] = 3560; t.fbL[1] = 3843; t.fbR[0] = 5693; t.fbR[1] = 6007;
+    t.modL[0] = t.modL[1] = 0;
+    t.tank1L = 4156; t.tank1R[0] = 6375; t.tank1R[1] = 6761;
+    t.tank2L[0] = 4113; t.tank2L[1] = 5422; t.tank2R[0] = 6332; t.tank2R[1] = 7570;
+    t.tankOutL = 4504; t.tankOutR = 6007;
+    t.mixL[0] = 4033; t.mixL[1] = 4715; t.mixL[2] = 4071; t.mixR[0] = 6217; t.mixR[1] = 7004; t.mixR[2] = 6290;
+    t.outA[0] = 380; t.outA[1] = 3845; t.outA[2] = 6816; t.outA[3] = 5443;
+    t.outB[0] = 706; t.outB[1] = 6029; t.outB[2] = 4528; t.outB[3] = 7661;
+    for (int i = 0; i < 6; ++i) t.echo[i] = (i == 0 || i == 2 || i == 4) ? 7853 : 36695;
+    t.lastL = 4754; t.lastR = 7057;
+    return t;
+}
+
+static law::SizeMap plateSize() {
+    law::SizeMap m;
+    m.active = true;
+    m.t0 = 0x0DE8; m.t1 = 0x1EAA; m.t2 = 0x0092; m.t3 = 0x02C2; m.f = 0x40; m.lo = 0x0A; m.hi = 0x29;
+    return m;
+}
+
+XlRegs Plate::factory() const {
+    XlRegs r;
+    r.size = 0xFE;
+    const uint8_t p1[6] = { 0x55, 0x55, 0x31, 0xF6, 0x00, 0x00 };
+    const uint8_t p3[6] = { 0x89, 0x89, 0x80, 0xC2, 0x95, 0x02 };
+    const uint8_t p4[6] = { 0x02, 0x02, 0x02, 0x02, 0x02, 0x02 };
+    const uint8_t p5[6] = { 0x04, 0x08, 0x0D, 0x24, 0x39, 0x37 };
+    const uint8_t p6[6] = { 0x20, 0x80, 0x40, 0x00, 0x00, 0x60 };
+    for (int i = 0; i < 6; ++i) {
+        r.page[0][i] = p1[i]; r.page[2][i] = p3[i]; r.page[3][i] = p4[i]; r.page[4][i] = p5[i]; r.page[5][i] = p6[i];
+    }
+    r.options = 0xC0;
+    return r;
+}
+
+// Control laws of PLATE (03 §3) [R].
+void Plate::applyControls(const XlRegs& r) {
+    using namespace law;
+    const uint8_t lf = r.at(1, 1) > 0xF9 ? 0xF9 : r.at(1, 1);
+    const uint8_t mid = r.at(1, 2) > 0xF9 ? 0xF9 : r.at(1, 2);
+    const uint8_t xo = r.at(1, 3) < 0x08 ? 0x08 : r.at(1, 3);
+    const uint8_t def = r.at(3, 6) > 0xC0 ? 0xC0 : r.at(3, 6);
+    const int sMid = step5(mid);
+
+    pair(r.at(3, 4), c.lpIn, c.lpFb);
+    pair(r.at(1, 4), c.trebleIn, c.trebleFb);
+    pair(xo, c.xoIn, c.xoFb);
+    // MID DECAY through rows of the decay-curve table; LF − MID on the crossover output.
+    static const int kRowLoop[5] = { 22, 41, 52, 59, 64 }, kRowMix1[5] = { 38, 48, 58, 62, 65 },
+                     kRowMix2[5] = { 28, 45, 55, 60, 65 };
+    c.mid = decayCurve(kRowLoop, sMid);
+    c.lfDiff = step5(lf) - sMid;
+    c.mix1 = decayCurve(kRowMix1, sMid);
+    c.mix2L = -decayCurve(kRowMix2, sMid);
+    c.mix2R = decayCurve(kRowMix2, sMid);
+
+    // DEFINITION: the feedback allpasses; it also caps s(MID) for the tank allpasses.
+    const int defX = (0xFF - def) >> 2;
+    const int defCap = ((0xFF - def) >> 3) + 1;
+    c.fbG = scaledGain(5, 16, defX, 2);
+    c.fbK = allpassK(c.fbG);
+    const int sCap = sMid < defCap - 1 ? sMid : defCap - 1;
+    g1_ = scaledGain(5, 16, sCap, 1);
+    g2_ = scaledGain(6, 19, sCap, 1);
+    setDecayReduction(reduction_);
+
+    // DIFFUSION: the three input allpasses.
+    const int x = r.at(3, 5) >> 2;
+    c.ap1G = scaledGain(6, 26, x, 2); c.ap1K = allpassK(c.ap1G);
+    c.ap2G = scaledGain(5, 26, x, 2); c.ap2K = allpassK(c.ap2G);
+    c.ap3G = scaledGain(3, 31, x, 2); c.ap3K = allpassK(c.ap3G);
+
+    // DEPTH: four output taps; A and B differ in the sign of the first.
+    static const int kD0[4] = { 25, 16, 7, 3 }, kD1[4] = { 16, 16, 16, 10 }, kD3[4] = { 16, 16, 16, 26 };
+    const uint8_t dep = r.at(1, 5);
+    c.outA[0] = -curve4(kD0, dep);
+    c.outB[0] = curve4(kD0, dep);
+    c.outA[1] = c.outB[1] = -curve4(kD1, dep);
+    c.outA[2] = c.outB[2] = 16;
+    c.outA[3] = c.outB[3] = curve4(kD3, dep);
+
+    // SIZE maps every offset; the delay builders add to S(base) + 1.
+    law::SizeMap sm = plateSize();
+    sm.set(r.size);
+    const Offsets t = templateOffsets();
+    const uint16_t* src = reinterpret_cast<const uint16_t*>(&t);
+    uint16_t* dst = reinterpret_cast<uint16_t*>(&o);
+    const uint16_t keepMod[2] = { o.modL[0], o.modL[1] };
+    for (size_t i = 0; i < sizeof(Offsets) / sizeof(uint16_t); ++i) dst[i] = sm(src[i]);
+    o.modL[0] = keepMod[0]; o.modL[1] = keepMod[1];
+    auto base = [&](uint16_t x) { return static_cast<int>(sm(x)) + 1; };
+
+    // PREDELAY moves the input line's read point (register clamped to fit the map).
+    const int pd = 34 * predelayMs(clampPredelay(r.at(1, 6), sm.delayLimit()));
+    o.inTapL = static_cast<uint16_t>(base(t.inTapL) + pd);
+    o.inTapR = static_cast<uint16_t>(base(t.inTapR) + pd);
+
+    // Pre-echoes: taps 1, 3, 5 feed A, 2, 4, 6 feed B; taps 1, 4, 5 read the left input line,
+    // 2, 3, 6 the right (3 and 4 cross over).
+    static const int kTapOf[6] = { 0, 3, 1, 4, 2, 5 };       // slider i -> echo slot
+    static const bool kLeftLine[6] = { true, false, false, true, true, false };
+    for (int i = 0; i < 6; ++i) {
+        const int slot = kTapOf[i];
+        const bool left = kLeftLine[i];
+        c.echo[slot] = r.at(4, i + 1) >> 2;
+        o.echo[slot] = static_cast<uint16_t>(base(left ? t.inTapL : t.inTapR) + fineDelay(r.at(5, i + 1), r.at(6, i + 1), 34));
+    }
+}
+
+} // namespace tearwash
+
+namespace tearwash {
+
+namespace {
+const ProgramInfo kXl[] = {
+    { "CONCERT HALL", 0x01, 0 },
+    { "ROOM", 0x04, 0 },
+    { "PLATE", 0x02, 1 },
+    { "SMALL PLATE", 0x03, 1 },
+};
+
+void setPages(XlRegs& r, const uint8_t (&p1)[6], const uint8_t (&p3)[6], const uint8_t (&p4)[6], const uint8_t (&p5)[6],
+              const uint8_t (&p6)[6]) {
+    for (int i = 0; i < 6; ++i) {
+        r.page[0][i] = p1[i]; r.page[2][i] = p3[i]; r.page[3][i] = p4[i]; r.page[4][i] = p5[i]; r.page[5][i] = p6[i];
+    }
+}
+} // namespace
+
+const ProgramInfo* xlPrograms(int& count) {
+    count = static_cast<int>(sizeof kXl / sizeof kXl[0]);
+    return kXl;
+}
+
+const ProgramInfo* findXlProgram(const char* name) {
+    for (const auto& p : kXl) if (std::string(p.name) == name) return &p;
+    return nullptr;
+}
+
+std::unique_ptr<Program> makeAlgorithm(int algorithm) {
+    if (algorithm == 1) return std::make_unique<Plate>();
+    return std::make_unique<ConcertHall>();
+}
+
+// Factory registers (the preset values the original loads with each program).
+XlRegs xlFactory(const ProgramInfo& p) {
+    XlRegs r;
+    switch (p.id) {
+    case 0x04: {   // ROOM: the CONCERT HALL algorithm, smaller and brighter
+        const uint8_t p1[6] = { 0x78, 0x78, 0x2B, 0xC6, 0x57, 0x00 }, p3[6] = { 0x88, 0x88, 0x8A, 0xC0, 0x6D, 0x02 },
+                      p4[6] = { 0x02, 0x02, 0x02, 0x02, 0x00, 0x00 }, p5[6] = { 0x06, 0x07, 0x0C, 0x10, 0x13, 0x16 },
+                      p6[6] = { 0x80, 0x00, 0x0C, 0x00, 0x00, 0x00 };
+        setPages(r, p1, p3, p4, p5, p6);
+        r.size = 0x56;
+        break;
+    }
+    case 0x03: {   // SMALL PLATE: the PLATE algorithm at a smaller size
+        const uint8_t p1[6] = { 0x78, 0x78, 0x31, 0xF6, 0x00, 0x00 }, p3[6] = { 0xA0, 0xA0, 0x83, 0xC0, 0x95, 0x10 },
+                      p4[6] = { 0x03, 0x03, 0x03, 0x03, 0x03, 0x03 }, p5[6] = { 0x04, 0x08, 0x0D, 0x24, 0x39, 0x37 },
+                      p6[6] = { 0, 0, 0, 0, 0, 0 };
+        setPages(r, p1, p3, p4, p5, p6);
+        r.size = 0x74;
+        break;
+    }
+    default:
+        r = makeAlgorithm(p.algorithm)->factory();
+        break;
+    }
+    r.options = 0xC0;
+    return r;
 }
 
 } // namespace tearwash

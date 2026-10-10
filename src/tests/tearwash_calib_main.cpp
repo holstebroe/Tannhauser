@@ -184,7 +184,7 @@ public:
                "emphasis, host/core resampling, Mode Enhancement tap walker, control laws driven by the registers the "
                "original's firmware read back for each case. Decay Optimisation not yet implemented. Nothing is fitted.";
     }
-    bool supports(const OracleCase& c) const override { return c.program == "CONCERT HALL"; }
+    bool supports(const OracleCase& c) const override { return tearwash::findXlProgram(c.program.c_str()) != nullptr; }
     void fit(const OracleCase&, const Metrics&) override {}
     std::string fitText() const override { return "registers"; }
     void saveFit(const std::string&) override {}
@@ -192,15 +192,18 @@ public:
     void render(const OracleCase& c, const Stimulus& s, std::vector<double>& L, std::vector<double>& R) override {
         tearwash::Engine e;
         e.setSampleRate(c.rate);
-        e.setProgram(std::make_unique<tearwash::ConcertHall>());
-        // Registers as the original's firmware read them back after the slider moves.
-        tearwash::XlRegs r = e.controls();
+        const tearwash::ProgramInfo* info = tearwash::findXlProgram(c.program.c_str());
+        e.setProgram(tearwash::makeAlgorithm(info->algorithm));
+        // Registers as the original's firmware read them back after the slider moves (SIZE and
+        // options from the program's factory set unless the case forces options).
+        tearwash::XlRegs r = tearwash::xlFactory(*info);
         for (int pg = 0; pg < 12 && pg * 13 + 12 <= static_cast<int>(c.sliders.size()); ++pg)
             for (int k = 0; k < 6; ++k)
                 r.page[pg][k] = static_cast<uint8_t>(std::strtoul(c.sliders.substr(pg * 13 + 2 * k, 2).c_str(), nullptr, 16));
         r.options = static_cast<uint8_t>(std::strtoul(c.options.c_str(), nullptr, 16));
         e.setControls(r);
         e.reset();
+        if (const char* seed = std::getenv("TW_SEED")) e.setModulationSeed(static_cast<uint32_t>(std::strtoul(seed, nullptr, 0)));
         const size_t lat = static_cast<size_t>(std::lround(e.latency()));
         const size_t n = s.audio.frames(), total = n + lat;
         std::vector<float> inL(total, 0.0f), inR(total, 0.0f), a(total), b(total), cc(total), d(total);
@@ -377,7 +380,7 @@ int main(int argc, char** argv) {
         ++nF;
     }
     const Result* ms = find("f_concert_hall_sine");
-    o << "## Summary (22 factory programs, sweep-derived impulse responses)\n\n";
+    o << "## Summary (" << nF << " factory programs, sweep-derived impulse responses)\n\n";
     o << "| Score | Value | Meaning |\n| --- | --- | --- |\n";
     if (nF) {
         o << "| Band RT error | " << fd(sBand / nF) << " % | mean over programs of mean |RT_c/RT_o − 1| over octave bands 125 Hz–8 kHz (1 kHz is fitted) |\n";

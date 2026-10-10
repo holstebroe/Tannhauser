@@ -47,10 +47,71 @@ inline int curve4(const int (&k)[4], uint8_t v) {
     const int x = 3 * v, i = x >> 8, f = x & 255;
     return k[i] + (k[i + 1] - k[i]) * f / 256;
 }
-// CHORUS: modulation update divider and step (4 = 1/32 sample) [R].
+// Decay-curve table row (values at s = 0, 8, 16, 24, 32): interpolate, truncate, halve [R].
+inline int decayCurve(const int (&row)[5], int s) {
+    const int i = s >> 3, f = s & 7;
+    const int full = i >= 4 ? row[4] : row[i] + (row[i + 1] - row[i]) * f / 8;
+    return full >> 1;
+}
+// Allpass gain from a scale/cap value byte: g = min(cap, ⌊scale·x/4⌋ / h) [R].
+inline int scaledGain(int scale, int cap, int x, int h) {
+    const int g = (scale * x / 4) / h;
+    return g < cap ? g : cap;
+}
+// Decay Optimisation applied to a base gain: never below 1/32 once it was above 0 [R].
+inline int reduced(int g, int steps) {
+    const int r = g - steps;
+    return g <= 0 ? g : (r < 1 ? 1 : r);
+}
+// SIZE (03 §3): the program's delay map stretches template offsets band by band [R].
+// Below T2 nothing moves; T2..T0 stretches by r2, T0..T1 by r1 (both /16); the space above T1 is
+// halved and each half moved as a block. r1 = 16·(lo + SIZE·(hi − lo)/256)/lo; r2 follows r1 by f/64,
+// capped so the lower band cannot pass T0. Delay builders add their delay to S(base) + 1.
+struct SizeMap {
+    uint16_t t0 = 0, t1 = 0, t2 = 0, t3 = 0;
+    int f = 0, lo = 16, hi = 16;
+    int r1 = 16, r2 = 16;
+    uint16_t e5 = 0, e7 = 0, mid = 0;
+    bool active = false;                       // false: SIZE does not move anything
+    void set(uint8_t size) {
+        if (!active) return;
+        r1 = (16 * (lo + (size * (hi - lo)) / 256)) / lo;
+        if (f) {
+            r2 = 16 + (f * (r1 - 16)) / 64;
+            if (t3 != t2) { const int d = (16 * (t0 - t2)) / (t3 - t2); if (r2 > d) r2 = d; }
+        } else {
+            r2 = 16;
+        }
+        e5 = static_cast<uint16_t>(band(t1) + 1);
+        mid = static_cast<uint16_t>(t1 + (0x10000 - t1) / 2);
+        e7 = static_cast<uint16_t>(e5 + (0x10000 - e5) / 2);
+    }
+    uint16_t operator()(uint16_t x) const {
+        if (!active) return x;
+        if (x <= t1) return static_cast<uint16_t>(band(x));
+        if (x < mid) return static_cast<uint16_t>(x - t1 + e5);
+        return static_cast<uint16_t>(x - mid + e7);
+    }
+    // Largest delay (samples) a delay builder may add above the map: FFF6h − e7.
+    int delayLimit() const { return active ? 0xFFF6 - e7 : 0xFFF6; }
+private:
+    int band(int x) const {
+        if (x <= t2) return x;
+        if (x < t0) return t2 + (r2 * (x - t2)) / 16;
+        return t0 + (r1 * (x - t0)) / 16;
+    }
+};
+// PREDELAY register clamp: the largest value whose delay fits under the map's limit [R].
+inline uint8_t clampPredelay(uint8_t v, int limit) {
+    while (v > 0 && 34 * predelayMs(v) > limit) --v;
+    return v;
+}
+// CHORUS: modulation update divider and step (4 = 1/32 sample) from the 5-bit step s = v >> 3:
+// below 80h the updates slow down (divider 17 − s), from 80h the steps grow (4·(s − 15)) [R].
 inline void chorus(uint8_t v, int& divider, int& step4) {
-    if (v < 0x80) { divider = ((0x80 - v) >> 3) + 1; step4 = 4; }
-    else { divider = 1; step4 = 4 + ((v - 0x80) >> 1); if (step4 > 64) step4 = 64; }
+    const int s = v >> 3;
+    if (s < 16) { divider = 17 - s; step4 = 4; }
+    else { divider = 1; step4 = 4 * (s - 15); }
 }
 } // namespace law
 
@@ -144,6 +205,8 @@ public:
         alternate_ = alternate;
         reset();
     }
+    // Random sequence of the direction draws (the original uses a fixed table; any seed is as good).
+    void setSeed(uint32_t seed) { rng_ = seed ? seed : 0x224C0DE5u; }
     // Change speed without disturbing the taps (CHORUS).
     void setSpeed(double coreRate, double updatesPerSecond, int step) {
         interval_ = coreRate / updatesPerSecond;

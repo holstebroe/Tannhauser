@@ -8,12 +8,14 @@
 // usage: tearwash_oracle --rom-dir DIR --set FILE --out DIR [--rate HZ] [--only ID]
 //        tearwash_oracle --rom-dir DIR --list
 //        tearwash_oracle --rom-dir DIR --capture PROGRAM_ID_HEX FRAMES OUT.bin [P.S=HH ...]
-//        tearwash_oracle --rom-dir DIR --image PROGRAM_ID_HEX [P.S=HH ...] [opt=MASK:BITS]
+//        tearwash_oracle --rom-dir DIR --image PROGRAM_ID_HEX [P.S=HH ...] [opt=MASK:BITS] [rom:ADDR=HH ...]
 //        tearwash_oracle --rom-dir DIR --trace PROGRAM_ID_HEX STEP STIMULUS SECONDS [P.S=HH ...] [opt=..]
 //
 // --trace runs a stimulus (generated at the DSP rate, no emphasis) with the factory options and
 // prints every change of program step STEP's coefficient (time, m).
 //
+// rom:ADDR=HH patches a ROM byte in memory before booting (e.g. a preset's SIZE byte; analysis
+// only, the files are untouched).
 // --image prints the loaded program image (hex, 4000h-41FFh) after the slider moves have been
 // applied and 2 s of silence, with the live options off unless opt= says otherwise.
 //
@@ -155,13 +157,14 @@ int capture(const RomImage& roms, unsigned id, size_t frames, const std::string&
     std::copy(d.wcs, d.wcs + 512, wcs0);
     FILE* f = std::fopen(path.c_str(), "wb");
     if (!f) { std::fprintf(stderr, "cannot write %s\n", path.c_str()); return 1; }
-    std::fwrite("TWCAP002", 1, 8, f);
+    std::fwrite("TWCAP003", 1, 8, f);
     put32(f, uint32_t(m.loopLen));
     std::fwrite(d.wcs, 1, 512, f);
     uint8_t sl[12][6];
     m.sliderValues(sl);
     std::fwrite(sl, 1, 72, f);                 // firmware registers, pages 1-12
     std::fputc(m.options(), f);
+    std::fputc(m.read(0x3CCE), f);             // SIZE register
     for (int k = 0; k < 4; ++k) put16(f, uint16_t(d.reg[k]));
     put16(f, uint16_t(d.result));
     put32(f, uint32_t(d.acc));
@@ -239,6 +242,7 @@ int main(int argc, char** argv) {
     std::string romDir, setFile, outDir, only, capturePath;
     unsigned captureId = 0, imageId = 0, optMask = 0xC1, optBits = 0;
     bool imageMode = false, traceMode = false;
+    std::vector<std::pair<unsigned, unsigned>> romPatches;
     int traceStep = 0;
     std::string traceStim;
     double traceSec = 0;
@@ -269,6 +273,11 @@ int main(int argc, char** argv) {
         }
         else if (a == "--image" && i + 1 < argc) { imageMode = true; imageId = static_cast<unsigned>(std::strtoul(argv[++i], nullptr, 16)); }
         else if (a.rfind("opt=", 0) == 0) std::sscanf(a.c_str() + 4, "%x:%x", &optMask, &optBits);
+        else if (a.rfind("rom:", 0) == 0) {
+            unsigned addr = 0, val = 0;
+            if (std::sscanf(a.c_str() + 4, "%x=%x", &addr, &val) != 2) { std::fprintf(stderr, "bad %s\n", a.c_str()); return 2; }
+            romPatches.push_back({ addr, val });
+        }
         else if (a.find('=') != std::string::npos && a[0] != '-') {
             Move mv{};
             if (std::sscanf(a.c_str(), "%d.%d=%x", &mv.page, &mv.slider, &mv.pos) != 3) { std::fprintf(stderr, "bad %s\n", a.c_str()); return 2; }
@@ -285,6 +294,10 @@ int main(int argc, char** argv) {
     static uint8_t sbc[0x1800], nvs[0x8000];
     std::string err;
     if (!loadRomFiles(romDir, sbc, nvs, err)) { std::fprintf(stderr, "%s\n", err.c_str()); return 1; }
+    for (const auto& pt : romPatches) {
+        if (pt.first < 0x1800) sbc[pt.first] = static_cast<uint8_t>(pt.second);
+        else if (pt.first >= 0x8000) nvs[pt.first - 0x8000] = static_cast<uint8_t>(pt.second);
+    }
     const RomImage roms{ sbc, nvs };
     if (traceMode) return trace(roms, imageId, traceStep, traceStim, traceSec, moves, optMask, optBits);
     if (imageMode) return image(roms, imageId, moves, optMask, optBits);

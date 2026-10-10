@@ -54,7 +54,7 @@ below it passes its tests.
 | --- | --- | --- |
 | 4.1 | `tools/tearwash/netlist.py`: loaded program image → signal-flow netlist and step listing (reads the user's local tools' output; no data committed) | ✅ |
 | 4.2 | 224XL CONCERT HALL: native network, bit-exact against the original (40 000 frames, W2b); factory settings meet every 04 §4 target (`reports/tw_concert_hall_vs_224XL.md`) | ✅ factory settings |
-| 4.3 | 224XL PLATE, ROOM, CHAMBER (one per algorithm family) | ⬜ |
+| 4.3 | 224XL PLATE (+ SMALL PLATE) and ROOM (CONCERT HALL algorithm) bit-exact with controls and SIZE (W2b, 9 captures); CHAMBER ⬜ | 🟡 |
 | 4.4 | Remaining 18 XL programs (splits, chorus/echo, res chords, multiband delay, inverse room) | ⬜ |
 | 4.5 | 224 V4.4: the seven algorithms (keys 01, 45, 84, 06, 0C, 1C, 0E), after TW1.6 | ⬜ |
 | 4.6 | 224X V8.1 programs, after TW1.5 | ⬜ |
@@ -62,7 +62,7 @@ below it passes its tests.
 ### TW5 — Control layer (03 §2–4)
 | ID | Issue | Status |
 | --- | --- | --- |
-| 5.1 | XL slider laws (`law::` in Control.hpp): CONCERT HALL pages 1, 3–6 bit-exact against five captures incl. extreme settings (W2b); predelay ramp [D]. SIZE map and the other programs' laws ⬜ | 🟡 |
+| 5.1 | XL slider laws (`law::` in Control.hpp) for CONCERT HALL and PLATE, pages 1, 3–6, and the SIZE map (`law::SizeMap`, predelay clamp), bit-exact against 17 captures; predelay ramp generic [D]. Other programs' laws come with their networks | 🟡 |
 | 5.2 | Mode Enhancement walker (`ModWalker`: 980 updates/s, 1/32-sample steps, direction re-drawn every 8·N updates, window reflect, alternate taps opposite; CHORUS → divider and step); own random source | ✅ |
 | 5.3 | Decay Optimisation (`DecayOptimiser`): ramp/step/depth and MID-dependent restore traced on the original; burst case 0.9 %. Open: at MID B0/D0 after a sweep the original's RT barely changes, ours drops 8–11 % (trace with the emphasised input next). Dynamic Decay ⬜ | 🟡 |
 | 5.4 | 224 V4.4 slot laws, pot → slot assignment (Q-T6), Mode Enh / Decay Opt 1–16, the two bugs + Bug Fix [A] | ⬜ |
@@ -174,3 +174,11 @@ excitations.
   Calibration of all 38 CONCERT HALL cases: summary 3.5 % band RT, 0.6 % EDT, 0.5 dB spectrum,
   NED 0.034, IACC 0.007, modulation −23.5/−22.1 dB; every sweep row ≤ 5 % except MID B0/D0
   (8–11 %, Decay Optimisation interaction, open).
+- 2026-10-10 — PLATE network (bit-exact first time), its laws (three decay-curve table rows,
+  two MID-group allpasses, DEFINITION group, three diffusion allpasses), the SIZE map with
+  template offsets and the predelay clamp on the millisecond grid, a program registry with
+  ROOM and SMALL PLATE (their algorithms with their factory registers and SIZE). Fixes found by
+  calibration: CHORUS law (step 4·(s − 15)), a pending predelay move lost on reset. Four
+  programs: 3.4 % band RT, 2.1 % EDT, 0.9 dB spectrum, NED 0.058, IACC 0.005; with modulation
+  off ROOM matches exactly; residuals with modulation are within one random realisation
+  (seed spread ±2–3 % RT).

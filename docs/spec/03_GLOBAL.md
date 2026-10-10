@@ -117,7 +117,7 @@ implemented yet (plan WP7).
 Plate/hall algorithm in the Dattorro (1997) topology with modulated tank allpasses:
 pre-delay 0–150 ms, decay 0.2–0.98 feedback, damping one-pole in the tank, input diffusion.
 Mix 0..1 (default 0.15 in pad presets, 0 in the factory tones). A true 224 algorithm study is
-plan WP8.
+plan WP9 (Tearwash 225).
 
 ## 13. Output
 

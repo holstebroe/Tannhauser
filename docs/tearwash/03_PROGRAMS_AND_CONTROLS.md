@@ -58,7 +58,7 @@ original's stepping is kept (smoothing is [A], off by default).
 | PREDELAY (1.6) | millisecond law t(v): v (< 50), 50 + 2(v − 50) (≤ 99), 150 + 4(v − 100) (≤ 149), 350 + 8(v − 150); d = 34·t samples; or u·v with u = 4 … 544 samples per step from the program descriptor; changes ramp (02 §6) |
 | DIFFUSION (3.5) | allpass g = min(cap, ⌊scale·(v >> 2)/4⌋/2)/32 per section, k = round(32(1 − g²)); CONCERT HALL: 00 → 0, 40 → 10/32, 12/32, 80 → 20/32, 24/32, C0 → 26/32 |
 | DEFINITION (3.6) | x = (FF − v) >> 2 sets a second allpass group and caps the MID-dependent allpass gains |
-| CHORUS (3.3) | modulation speed: update divider and step (≈ 2 samples/s at 00 … ≈ 475 at FF; factory 80 ≈ 30) |
+| CHORUS (3.3) | modulation speed from s = v >> 3: below 80h divider 17 − s (step 1/32 sample), from 80h step 4·(s − 15)/128 sample per update (≈ 2 samples/s at 00 … ≈ 475 at FF; factory 80 ≈ 30) [R, traced] |
 | SIZE (13.1) | stretches the program's delay map in bands, ×1 … ×4 (halls) to ×10.9 (rich chamber); RT scales with it |
 | MODE ENH / DECAY OPT / DYN DECAY | options; see §4 |
 
@@ -77,6 +77,19 @@ third tap uses the first curve negated); delays with a fine register are
 (u·(256·coarse + fine) + 128) >> 8 samples (u = 34 for pre-echoes, 4 for the decay taps); the
 LARC maps page-5 slider positions to registers non-linearly and moving one resets its page-6
 fine value; pre-echo LEVELs are v >> 2. Plugin parameters store registers, not positions.
+
+**Verified on PLATE** [R]: MID DECAY drives three coefficients through rows of the decay-curve
+table (interpolate the full values at s, truncate, halve): loop gain row 22/41/52/59/64, tank mix
+rows 38/48/58/62/65 and 28/45/55/60/65; the two MID-group allpasses use (scale 5, cap 16) and
+(6, 19) on s(MID) capped by DEFINITION; the DEFINITION group is the feedback allpass (5, 16);
+DIFFUSION sets three input allpasses (6, 26), (5, 26), (3, 31); DEPTH curves 25/16/7/3 (first
+tap, sign per output), 16/16/16/10 (negated), 16, 16/16/16/26.
+
+**SIZE** (both algorithms, bit-exact at SIZE 00, 20, 56, 74, FE) [R]: offsets are the program's
+template offsets through the band map of 02/`law::SizeMap`; delay builders give S(base) + 1 + d;
+the PREDELAY register is clamped to the largest value with 34·t(v) ≤ FFF6h − [3CE7] (so the
+limit lies on the millisecond grid: CONCERT HALL 870 ms at SIZE 00 … 670 ms at FE). ROOM and
+SMALL PLATE are the CONCERT HALL and PLATE algorithms at SIZE 56 and 74 with their own registers.
 
 ### 224 (V4.4) — from the firmware, slot level [R C§12.5, C§13.3]
 

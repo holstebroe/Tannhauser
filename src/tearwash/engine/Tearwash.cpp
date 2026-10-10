@@ -40,32 +40,40 @@ void Engine::setControls(const XlRegs& r) {
     law::chorus(r.at(3, 3), divider, step4);
     walker_.setSpeed(coreRate_, 980.0 / divider, step4);
     decayOpt_.setMid(law::step5(r.at(1, 2) > 0xF9 ? 0xF9 : r.at(1, 2)));
-    if (auto* ch = dynamic_cast<ConcertHall*>(prog_.get())) {
-        const uint16_t oldL = ch->o.preL, oldR = ch->o.preR;
-        ch->applyControls(r);
-        preHome_ = ch->c.pre;
-        // Keep the old predelay until the ramp has taken the gain to zero.
-        if (ch->o.preL != oldL || ch->o.preR != oldR) {
-            pendPreL_ = ch->o.preL; pendPreR_ = ch->o.preR;
-            ch->o.preL = oldL; ch->o.preR = oldR;
-            ch->c.pre = preGain_;
-            preMoving_ = true;
-        }
+    uint16_t* pl = nullptr;
+    uint16_t* pr = nullptr;
+    int* gain = nullptr;
+    prog_->predelayRamp(pl, pr, gain);
+    if (!pl) { prog_->applyControls(r); return; }
+    const uint16_t oldL = *pl, oldR = *pr;
+    prog_->applyControls(r);
+    preHome_ = *gain;
+    // Keep the old predelay until the ramp has taken the gain to zero.
+    if (*pl != oldL || *pr != oldR) {
+        pendPreL_ = *pl; pendPreR_ = *pr;
+        *pl = oldL; *pr = oldR;
+        *gain = preGain_;
+        preMoving_ = true;
     } else {
-        prog_->applyControls(r);
+        *gain = preGain_;
     }
 }
 
 void Engine::controlTick() {
-    auto* ch = dynamic_cast<ConcertHall*>(prog_.get());
-    if (!ch || (!preMoving_ && preGain_ == preHome_)) return;
+    uint16_t* pl = nullptr;
+    uint16_t* pr = nullptr;
+    int* gain = nullptr;
+    prog_->predelayRamp(pl, pr, gain);
+    if (!pl || (!preMoving_ && preGain_ == preHome_)) return;
     if (preMoving_) {
         if (preGain_ > 0) --preGain_;
-        else { ch->o.preL = pendPreL_; ch->o.preR = pendPreR_; preMoving_ = false; }
+        else { *pl = pendPreL_; *pr = pendPreR_; preMoving_ = false; }
     } else if (preGain_ < preHome_) {
         ++preGain_;
+    } else if (preGain_ > preHome_) {
+        --preGain_;
     }
-    ch->c.pre = preGain_;
+    *gain = preGain_;
 }
 
 void Engine::reset() {
@@ -80,8 +88,15 @@ void Engine::reset() {
     walker_.reset();
     decayOpt_.reset();
     prog_->setDecayReduction(0);
+    // A pending predelay move completes at once: nothing is playing to click.
+    uint16_t* pl = nullptr;
+    uint16_t* pr = nullptr;
+    int* gain = nullptr;
+    prog_->predelayRamp(pl, pr, gain);
+    if (pl && preMoving_) { *pl = pendPreL_; *pr = pendPreR_; }
     preMoving_ = false;
     preGain_ = preHome_;
+    if (gain) *gain = preHome_;
     ctlPhase_ = 0.0;
 }
 

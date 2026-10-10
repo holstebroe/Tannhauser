@@ -51,7 +51,7 @@ static void testFpc() {
 // W2b: native network vs a capture of the original program (same state, same input).
 struct Capture {
     int loop = 0;
-    bool hasRegs = false;
+    bool hasRegs = false, hasSize = false;
     XlRegs regs;
     std::vector<int16_t> mem, inL, inR;
     std::vector<int16_t> out;   // 4 per frame
@@ -75,14 +75,16 @@ static bool loadCapture(const std::string& path, Capture& c) {
     auto u16 = [&]() { uint16_t v = uint16_t(d[p] | (d[p + 1] << 8)); p += 2; return v; };
     auto u32 = [&]() { uint32_t lo = u16(); return lo | (uint32_t(u16()) << 16); };
     const std::string magic = d.size() >= 8 ? std::string(d.begin(), d.begin() + 8) : "";
-    if (magic != "TWCAP001" && magic != "TWCAP002") return false;
+    if (magic != "TWCAP001" && magic != "TWCAP002" && magic != "TWCAP003") return false;
     p = 8;
     c.loop = int(u32());
     p += 512;                        // program image: not needed by the native network
-    if (magic == "TWCAP002") {
+    if (magic != "TWCAP001") {
         c.hasRegs = true;
         for (int pg = 0; pg < 12; ++pg) for (int k = 0; k < 6; ++k) c.regs.page[pg][k] = d[p++];
         c.regs.options = d[p++];
+        c.hasSize = magic == "TWCAP003";
+        if (c.hasSize) c.regs.size = d[p++];
     }
     for (int k = 0; k < 4; ++k) u16();
     c.result = int16_t(u16());
@@ -143,16 +145,20 @@ static void testCapture(const std::string& id, Program& prog) {
     if (c.hasRegs) {
         XlRegs r = prog.factory();
         for (int pg = 0; pg < 12; ++pg) for (int k = 0; k < 6; ++k) r.page[pg][k] = c.regs.page[pg][k];
+        if (c.hasSize) r.size = c.regs.size;
         prog.applyControls(r);
     }
     CHECK(c.loop == prog.loopLength(), "%s loop %d, network %d", id.c_str(), c.loop, prog.loopLength());
-    int bestLi = 0, bestLo = 0;
-    size_t best = 0;
+    // The original's alignment is input lag -1, output lag 0; another lag wins only if it
+    // matches strictly longer (ties are common while the output is still quiet).
+    int bestLi = -1, bestLo = 0;
+    size_t best = compare(prog, c, -1, 0, 4000, nullptr);
     for (int li = -2; li <= 2; ++li)
         for (int lo = -2; lo <= 2; ++lo) {
             const size_t m = compare(prog, c, li, lo, 4000, nullptr);
             if (m > best) { best = m; bestLi = li; bestLo = lo; }
         }
+    if (const char* lag = std::getenv("TW_LAG")) { bestLi = std::atoi(lag); bestLo = 0; }
     std::string why;
     const size_t frames = c.out.size() / 4;
     const size_t m = compare(prog, c, bestLi, bestLo, frames, &why);
@@ -186,21 +192,27 @@ static void testCapture(const std::string& id, Program& prog) {
 }
 
 // Factory registers through the control laws must give the network's factory defaults.
-static void testFactoryControls() {
-    ConcertHall a, b;
+template <class P>
+static void testFactoryControls(const char* name) {
+    P a, b;
     b.applyControls(b.factory());
     const bool same = std::memcmp(&a.o, &b.o, sizeof a.o) == 0 && std::memcmp(&a.c, &b.c, sizeof a.c) == 0;
-    CHECK(same, "CONCERT HALL: factory registers do not reproduce the factory network");
+    CHECK(same, "%s: factory registers do not reproduce the factory network", name);
 }
 
 int main() {
     testMac();
     testFpc();
-    testFactoryControls();
+    testFactoryControls<ConcertHall>("CONCERT HALL");
+    testFactoryControls<Plate>("PLATE");
     // Captures: 01 (factory) and 01_* (other settings), when present.
-    for (const char* id : { "01", "01_a", "01_b", "01_c", "01_d" }) {
+    for (const char* id : { "01", "01_a", "01_b", "01_c", "01_d", "01_s56", "01_s20", "04" }) {
         ConcertHall ch;
         testCapture(id, ch);
+    }
+    for (const char* id : { "02", "02_a", "02_b", "02_c", "02_s74", "02_s00", "03" }) {
+        Plate pl;
+        testCapture(id, pl);
     }
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;

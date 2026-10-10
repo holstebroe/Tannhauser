@@ -57,6 +57,7 @@ public:
     const XlRegs& controls() const { return regs_; }
     // Mode Enhancement (delay modulation), on by default as in the factory programs.
     void setModeEnhancement(bool on) { modeEnh_ = on; regs_.options = on ? (regs_.options | 0x40) : (regs_.options & ~0x40); }
+    void setModulationSeed(uint32_t seed) { walker_.setSeed(seed); }
     double coreRate() const { return coreRate_; }
     // Fixed latency from input to output in host samples.
     double latency() const { return latency_; }
@@ -71,8 +72,7 @@ private:
     XlRegs regs_;
     // Predelay ramp [D]: the predelayed input's gain steps to 0, the offset moves, it steps back.
     void controlTick();
-    int rampTarget_ = 0;            // pending offsets apply when the gain reaches 0
-    uint16_t pendPreL_ = 0, pendPreR_ = 0, curPreL_ = 0, curPreR_ = 0;
+    uint16_t pendPreL_ = 0, pendPreR_ = 0;
     int preGain_ = 16, preHome_ = 16;
     bool preMoving_ = false;
     double ctlPhase_ = 0.0, ctlInterval_ = 32.0;
