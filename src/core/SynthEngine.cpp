@@ -13,14 +13,18 @@ constexpr double kFeetRatio[6] = { 0.5, 1.0, 1.5, 2.0, 3.0, 4.0 };
 constexpr double kHpfWeight = 0.47;              // HPF slider: Vfc via 100k vs LPF via 47k (M board), spec 02 §4
 constexpr double kHpfOctaveRatio = 0.5;          // HPF moves half the LPF's octaves (Cherry, measured), P-4
 constexpr double kBusGain = 0.15;
+constexpr double kOtaInvV = 1.0 / 2.0;          // IG00156 OTA integrator saturation, 2.0 (signal units) [D], spec 02 §4
+constexpr double kJitter = 5e-4;                 // VCO cycle-to-cycle frequency jitter (rms) at Drift = 1 [D], spec 02 §8
 
 inline double semisToHz(double semis) { return kMiddleC * std::exp2((semis - 60.0) / 12.0); }
 
-// Soft OTA-input saturation ~ 1.2 tanh(x / 1.2), rational approximation.
-inline double softSat(double x) {
-    const double y = clampd(x * (1.0 / 1.2), -3.0, 3.0);
-    const double y2 = y * y;
-    return 1.2 * y * (27.0 + y2) / (27.0 + 9.0 * y2);
+// Adds a jump at d samples before the current sample n (d in [0,1)) to the
+// VCO delay line a = samples n-2 .. n+1 (spec 02 §2: 4-point B-spline BLEP).
+inline void addJump(double* a, double jump, double d) {
+    a[0] += jump * blep4Rise(d);
+    a[1] += jump * blep4Rise(d + 1.0);
+    a[2] -= jump * blep4Rise(2.0 - d);
+    a[3] -= jump * blep4Rise(1.0 - d);
 }
 
 // SVF prewarp tan(pi fc / fs) for fc <= 0.45 fs (x <= 1.414): Pade [5/4],
@@ -60,6 +64,7 @@ void SynthEngine::initCalibration() {
             c.envScale = 0.06 * r.bipolar();
             c.feedthrough = std::pow(10.0, (-70.0 + 10.0 * r.uniform()) / 20.0);
             c.phase0 = r.uniform();
+            c.jitter = 1.0 + 0.3 * r.bipolar();
             voices_[v].line[l].phase = c.phase0;
         }
     }
@@ -68,16 +73,25 @@ void SynthEngine::initCalibration() {
 void SynthEngine::setSampleRate(double fs) {
     if (!(fs > 1000.0) || !std::isfinite(fs)) return;
     fs_ = fs;
-    fsOs_ = fs * kOversample;
-    glideCoeff_ = 1.0 - std::exp(-1.0 / (0.005 * fsOs_));
-    scoopDecay_ = std::exp(-1.0 / (0.06 * fsOs_));
+    configureOversampling(params_[P_OVERSAMPLE] >= 0.5 ? 4 : 2);
     chorus_.setSampleRate(fs);
     reverb_.setSampleRate(fs);
-    for (auto& v : voices_) for (auto& l : v.line) l.pole.setCutoff(7600.0, fsOs_);
     mono_.assign(kSubBlock, 0.0f);
     wetL_.assign(kSubBlock, 0.0f);
     wetR_.assign(kSubBlock, 0.0f);
     reset();
+}
+
+void SynthEngine::configureOversampling(int factor) {
+    // Called from setSampleRate and when os.4x changes (audio thread: no allocation).
+    osFactor_ = factor;
+    fsOs_ = fs_ * factor;
+    noiseScale_ = std::sqrt(fsOs_ / 96000.0);
+    glideCoeff_ = 1.0 - std::exp(-1.0 / (0.005 * fsOs_));
+    scoopDecay_ = std::exp(-1.0 / (0.06 * fsOs_));
+    for (auto& v : voices_) for (auto& l : v.line) l.pole.setCutoff(7600.0, fsOs_);
+    decimator_.reset();
+    decimator4_.reset();
 }
 
 void SynthEngine::reset() {
@@ -90,11 +104,14 @@ void SynthEngine::reset() {
             l.feg.reset(); l.veg.reset();
             l.drift.x = 0.0;
             l.noiseLevel = 0.0;
+            l.jitter = 1.0;
+            for (double& b : l.blep) b = 0.0;
         }
     }
     heldKeys_ = 0;
     rmEnv_ = 0.0; rmAttack_ = false;
     decimator_.reset();
+    decimator4_.reset();
     chorus_.reset();
     reverb_.reset();
     smoothInit_ = false;
@@ -158,6 +175,9 @@ void SynthEngine::startVoice(Voice& v, int key, double velocity) {
     lastPlayedSemis_ = key;
     havePlayed_ = true;
     v.scoop = -2.0 * params_[P_TOUCH_BEND] * velocity;
+    // A new note starts unbent; struck during a ribbon touch it follows the ribbon from here.
+    v.ribbonTarget = v.ribbonSm = 0.0;
+    v.ribbonBase = ribbonTouched_ ? -12.0 * params_[P_RIBBON] : 0.0;
     for (int l = 0; l < 2; ++l) {
         const uint32_t base = l == 0 ? kLine1Base : kLine2Base;
         v.line[l].feg.gateOn(params_[base + LP_IL], params_[base + LP_AL]);
@@ -233,7 +253,7 @@ double SynthEngine::lineFrequency(int vi, int l) const {
     const LineControls& c = lc_[l];
     const CardCalibration& cal = v.line[l].cal;
     const double drift = params_[P_DRIFT];
-    const double semis = v.smoothSemis + v.scoop + params_[P_PITCH] + ribbonSm_ + bendNorm_ * params_[P_BEND_RANGE];
+    const double semis = v.smoothSemis + v.scoop + params_[P_PITCH] + ribbonSm_ + v.ribbonSm + bendNorm_ * params_[P_BEND_RANGE];
     const double detune = (l == 1) ? 12.0 * params_[P_DETUNE] * params_[P_DETUNE] : 0.0;
     return (semisToHz(semis) + detune) * c.feetRatio * (1.0 + cal.scaleErr * drift)
            + cal.offsetHz * drift + v.line[l].drift.x * drift;
@@ -260,6 +280,7 @@ void SynthEngine::updateControls(int hostSamples) {
     const double* p = smooth_.data();
     const double globalRes = p[P_RESONANCE];
     const double mix = p[P_MIX];
+    const bool longEnv = params_[P_ENV_LONG] >= 0.5;   // Long envelope mode [A]
     for (int l = 0; l < 2; ++l) {
         const uint32_t b = l == 0 ? kLine1Base : kLine2Base;
         LineControls& c = lc_[l];
@@ -275,23 +296,24 @@ void SynthEngine::updateControls(int hostSamples) {
         c.vqL = clampd(10.0 * (1.0 - p[b + LP_RES_L]) - 10.0 * globalRes, 0.0, 10.0);
         c.il = p[b + LP_IL];
         c.al = p[b + LP_AL];
-        c.fegA = attackTimeSec(p[b + LP_FEG_A]);
-        c.fegD = decayTimeSec(p[b + LP_FEG_D]);
-        c.fegR = decayTimeSec(p[b + LP_FEG_R]);
+        c.fegA = timeSec(TimeLaw::VcfAttack, p[b + LP_FEG_A], longEnv);
+        c.fegD = timeSec(TimeLaw::VcfDecay, p[b + LP_FEG_D], longEnv);
+        c.fegR = timeSec(TimeLaw::VcfRelease, p[b + LP_FEG_R], longEnv);
         c.vcfLevel = p[b + LP_VCF_LEVEL];
         c.sine = p[b + LP_SINE];
-        c.vegA = attackTimeSec(p[b + LP_VEG_A]);
-        c.vegD = decayTimeSec(p[b + LP_VEG_D]);
+        c.vegA = timeSec(TimeLaw::VcaAttack, p[b + LP_VEG_A], longEnv);
+        c.vegD = timeSec(TimeLaw::VcaDecay, p[b + LP_VEG_D], longEnv);
         c.vegS = p[b + LP_VEG_S];
-        c.vegR = decayTimeSec(p[b + LP_VEG_R]);
+        c.vegR = timeSec(TimeLaw::VcaRelease, p[b + LP_VEG_R], longEnv);
         c.level = p[b + LP_LEVEL];
         c.initBrill = p[b + LP_INIT_BRILL];
         c.initLevel = p[b + LP_INIT_LEVEL];
         c.afterBrill = p[b + LP_AFTER_BRILL];
         c.afterLevel = p[b + LP_AFTER_LEVEL];
         c.mixGain = l == 0 ? std::min(1.0, 2.0 * (1.0 - mix)) : std::min(1.0, 2.0 * mix);
+        c.silent = c.level * c.mixGain < 1e-6;
         // PWM LFO, one per line (spec 03 §4).
-        const double pwmHz = 0.1 * std::pow(250.0, p[b + LP_PWM_SPEED]);
+        const double pwmHz = pwmRateHz(p[b + LP_PWM_SPEED]);
         pwmPhase_[l] = wrap01(pwmPhase_[l] + pwmHz * blockSec);
         c.pwmLfo = std::sin(kTwoPi * pwmPhase_[l]);
     }
@@ -315,7 +337,7 @@ void SynthEngine::updateControls(int hostSamples) {
             const double envK = 1.0 + s.cal.envScale * drift;
             double relV = c.vegR * envK, relF = c.fegR * envK;
             if (params_[P_SUS_PEDAL] >= 0.5) {
-                const double ts = decayTimeSec(p[P_SUS_TIME]);
+                const double ts = timeSec(TimeLaw::Sustain, p[P_SUS_TIME]);
                 relV += ts; relF += ts;
             }
             if (v.fastRelease) relV = relF = 0.005;
@@ -330,8 +352,25 @@ void SynthEngine::updateControls(int hostSamples) {
             s.qaL = 5.0 * std::pow(0.1, c.vqL * 0.1) * qScale;
         }
     }
-    // Ribbon: smoothed ~2 ms (spec 03 §7). The parameter is -1..1 = +-1 octave.
-    ribbonSm_ += (12.0 * params_[P_RIBBON] - ribbonSm_) * (1.0 - std::exp(-blockSec / 0.002));
+    // Ribbon (spec 03 §7), -1..1 = +-1 octave, smoothed ~2 ms. While it is touched every
+    // sounding voice follows it from where it was; on release the voices keep their bend
+    // (Ribbon Hold [A]) or return (the CS-80). New notes start unbent. A ribbon moved
+    // without a touch (host automation) bends all voices globally, as before.
+    const double ribbonC = 1.0 - std::exp(-blockSec / 0.002);
+    const bool touch = params_[P_RIBBON_TOUCH] >= 0.5;
+    const double r = 12.0 * params_[P_RIBBON];
+    if (touch && !ribbonTouched_) {
+        for (auto& v : voices_) v.ribbonBase = v.ribbonTarget - r;
+    }
+    if (!touch && ribbonTouched_ && params_[P_RIBBON_HOLD] < 0.5) {
+        for (auto& v : voices_) v.ribbonTarget = 0.0;
+    }
+    ribbonTouched_ = touch;
+    for (auto& v : voices_) {
+        if (touch && (v.gate || v.active())) v.ribbonTarget = v.ribbonBase + r;
+        v.ribbonSm += (v.ribbonTarget - v.ribbonSm) * ribbonC;
+    }
+    ribbonSm_ += ((touch ? 0.0 : r) - ribbonSm_) * ribbonC;
 }
 
 // --- Voice rendering -------------------------------------------------------------------
@@ -362,7 +401,7 @@ double SynthEngine::renderVoiceSample(Voice& v, int vi, double noise, double sub
     const double drift = params_[P_DRIFT];
     if (updateFilters_) {
         // Key voltage and VCO frequency, once per host sample.
-        const double kvSemis = v.smoothSemis + params_[P_PITCH] + ribbonSm_ + bendNorm_ * params_[P_BEND_RANGE];
+        const double kvSemis = v.smoothSemis + params_[P_PITCH] + ribbonSm_ + v.ribbonSm + bendNorm_ * params_[P_BEND_RANGE];
         v.fKv = semisToHz(kvSemis);
         // VCO-only exponential modulators: sub-osc vibrato (+ touch depth, mod wheel) and scoop.
         const double vibDepth = clampd(p[P_SUB_VCO] + 0.5 * modWheel_ + p[P_TOUCH_VCO] * v.pressure, 0.0, 1.0);
@@ -384,56 +423,83 @@ double SynthEngine::renderVoiceSample(Voice& v, int vi, double noise, double sub
         s.feg.setLevels(c.il, c.al);
         const double fegV = s.feg.tick(s.fegCa, s.fegCd, s.fegCr);
         const double veg = s.veg.tick(s.vegCa, s.vegCd, c.vegS, s.vegCr);
-        if (!s.veg.active()) { s.phase = wrap01(s.phase + fVco / fsOs_); continue; }
+        if (!s.veg.active() || c.silent) {
+            // Inactive or silent line (Level or Mix at 0): the VCO keeps running, nothing
+            // else is rendered (the VCA feedthrough of a line at Level 0 is dropped).
+            s.phase = wrap01(s.phase + fVco / fsOs_);
+            for (double& b : s.blep) b = 0.0;
+            continue;
+        }
 
-        // VCO: linear Hz law, offsets in Hz (spec 02 §1).
+        // VCO: linear Hz law, offsets in Hz (spec 02 §1), cycle jitter (§8).
         double f = (fVco + (l == 1 ? detuneHz : 0.0)) * c.feetRatio * (1.0 + cal.scaleErr * drift)
                    + (cal.offsetHz + s.drift.x) * drift;
-        f = clampd(f, 0.0, 0.45 * fsOs_);
+        f = clampd(f * s.jitter, 0.0, 0.45 * fsOs_);
         const double dt = f / fsOs_;
-        s.phase += dt;
-        if (s.phase >= 1.0) s.phase -= 1.0;
-        const double t = s.phase;
+        const double tPrev = s.phase;
+        double t = tPrev + dt;
+        const bool wrapped = t >= 1.0;
+        if (wrapped) {
+            t -= 1.0;
+            s.jitter = 1.0 + kJitter * cal.jitter * drift * rng_.gauss();
+        }
+        s.phase = t;
 
-        double osc = 0.0;
+        // Saw (+ start pulse) and pulse: naive waveforms into a 2-sample delay
+        // line, each jump corrected with the 4-point B-spline BLEP (spec 02 §2).
+        double* a = s.blep;
+        a[0] = a[1]; a[1] = a[2]; a[2] = a[3]; a[3] = 0.0;
+        const double invDt = dt > 0.0 ? 1.0 / dt : 0.0;
+        double naive = 0.0;
         if (c.sawOn > 1e-4) {
-            double saw = 2.0 * t - 1.0 - polyBlep(t, dt);
-            // Start pulse at each reset (spec 02 §2).
             const double w = clampd(0.02 * cal.pulseWidth, 2.5 * dt, 0.2);
             const double h = 0.2 * cal.pulseHeight;
-            saw += (t < w ? h : 0.0) + 0.5 * h * polyBlep(t, dt) - 0.5 * h * polyBlep(t >= w ? t - w : t - w + 1.0, dt);
-            osc += c.sawOn * saw;
+            naive += c.sawOn * (2.0 * t - 1.0 + (t < w ? h : 0.0));
+            if (wrapped) addJump(a, c.sawOn * (h - 2.0), t * invDt);
+            if ((wrapped || tPrev < w) && t >= w) addJump(a, -c.sawOn * h, std::min((t - w) * invDt, 0.999999));
         }
         if (c.squareOn > 1e-4) {
             const double pw = clampd(c.pwBase + 0.4 * c.pwmDepth * c.pwmLfo, 0.5, 0.95);
-            double pulse = (t < pw ? 1.0 : -1.0) + polyBlep(t, dt) - polyBlep(t >= pw ? t - pw : t - pw + 1.0, dt);
-            pulse -= 2.0 * pw - 1.0;
-            osc += c.squareOn * pulse;
+            if (wrapped && !s.pulseHigh) {
+                s.pulseHigh = true;
+                addJump(a, 2.0 * c.squareOn, t * invDt);
+            }
+            if (s.pulseHigh && t >= pw) {
+                s.pulseHigh = false;
+                addJump(a, -2.0 * c.squareOn, std::min((t - pw) * invDt, 0.999999));
+            }
+            naive += c.squareOn * ((s.pulseHigh ? 1.0 : -1.0) - (2.0 * pw - 1.0));
         }
+        a[2] += naive;
+        double osc = a[0];
         s.noiseLevel += (c.noise - s.noiseLevel) * 0.01;
         osc += 0.7 * s.noiseLevel * noise;
 
+        // Sine from the phase two samples back, aligned with the delayed saw/pulse.
+        const double tSine = s.phaseHist[1];
+        s.phaseHist[1] = s.phaseHist[0];
+        s.phaseHist[0] = t;
         double sine = 0.0;
         if (c.sine > 1e-4) {
-            const double tri = t < 0.5 ? 4.0 * t - 1.0 : 3.0 - 4.0 * t;
+            const double tri = tSine < 0.5 ? 4.0 * tSine - 1.0 : 3.0 - 4.0 * tSine;
             sine = 0.86 * (std::sin(0.5 * kPi * tri) + 0.03 * tri * tri * tri) / 1.03;
         }
 
-        // Filters: Vf sums (spec 02 §4).
-        const double touchBrillV = 4.0 * c.initBrill * v.velocity + 5.0 * c.afterBrill * v.pressure;
-        const double mods = fegV + 4.0 * p[P_BRILLIANCE] + touchBrillV + v.kbdBrillV + subVcfV;
-        const double vfL = clampd(c.lpfV + mods, 0.0, 20.0);
-        const double track = fKv / kKv025Hz * 200.0 * (1.0 + cal.cutScale * drift);   // Hz per volt
-        const double fcMax = 0.45 * fsOs_;
-        const double fcL = clampd(vfL * track, 20.0, fcMax);
-        // HPF: its own slider through the 0.47 divider, moved by half the
-        // octaves the modulators move the LPF (spec 02 §4).
-        const double ratio = (vfL + 1.0) / (c.lpfV + 1.0);
-        const double hpOct = kHpfOctaveRatio == 0.5 ? std::sqrt(ratio) : std::pow(ratio, kHpfOctaveRatio);
-        const double fcH = clampd(std::max(20.0, kHpfWeight * c.hpfV * track) * hpOct, 20.0, fcMax);
-        lastVfL_[vi][l] = vfL;
-        lastVfH_[vi][l] = fcH / track;
+        // Filters: Vf sums (spec 02 §4), cutoff and Q once per host sample.
         if (updateFilters_) {
+            const double touchBrillV = 4.0 * c.initBrill * v.velocity + 5.0 * c.afterBrill * v.pressure;
+            const double mods = fegV + 4.0 * p[P_BRILLIANCE] + touchBrillV + v.kbdBrillV + subVcfV;
+            const double vfL = clampd(c.lpfV + mods, 0.0, 20.0);
+            const double track = fKv / kKv025Hz * 200.0 * (1.0 + cal.cutScale * drift);   // Hz per volt
+            const double fcMax = 0.45 * fsOs_;
+            const double fcL = clampd(vfL * track, 20.0, fcMax);
+            // HPF: its own slider through the 0.47 divider, moved by half the
+            // octaves the modulators move the LPF (spec 02 §4).
+            const double ratio = (vfL + 1.0) / (c.lpfV + 1.0);
+            const double hpOct = kHpfOctaveRatio == 0.5 ? std::sqrt(ratio) : std::pow(ratio, kHpfOctaveRatio);
+            const double fcH = clampd(std::max(20.0, kHpfWeight * c.hpfV * track) * hpOct, 20.0, fcMax);
+            lastVfL_[vi][l] = vfL;
+            lastVfH_[vi][l] = fcH / track;
             // Q falls from QA toward 0.5 above fq (spec 02 §4).
             auto damping = [](double qa, double fc) {
                 const double fq = 1100.0 * 14.4 / qa;
@@ -443,23 +509,27 @@ double SynthEngine::renderVoiceSample(Voice& v, int vi, double noise, double sub
             };
             s.hp.setCoeffs(prewarp(fcH, fsOs_), damping(s.qaH, fcH));
             s.lp.setCoeffs(prewarp(fcL, fsOs_), damping(s.qaL, fcL));
+            const double dyn = (1.0 - 0.75 * c.initLevel) + 0.75 * c.initLevel * v.velocity + 0.5 * c.afterLevel * v.pressure;
+            s.gain = dyn * c.level * v.kbdLevel * c.mixGain;
         }
 
+        // HPF -> LPF, both with saturating OTA integrators (spec 02 §4).
         double lp, bp, hp;
-        s.hp.tick(softSat(osc), lp, bp, hp);
+        s.hp.tick(osc, kOtaInvV, lp, bp, hp);
         const double hpOut = hp;
-        s.lp.tick(hpOut, lp, bp, hp);
+        s.lp.tick(hpOut, kOtaInvV, lp, bp, hp);
         const double filtered = s.pole.tick(lp);
 
         const double pre = c.vcfLevel * filtered + c.sine * sine;
-        const double dyn = (1.0 - 0.75 * c.initLevel) + 0.75 * c.initLevel * v.velocity + 0.5 * c.afterLevel * v.pressure;
-        const double gain = veg * dyn * c.level * v.kbdLevel * subVca * c.mixGain;
+        const double gain = veg * s.gain * subVca;
         out += pre * (gain + cal.feedthrough * drift);
     }
     return out;
 }
 
 void SynthEngine::process(float* outL, float* outR, int n) {
+    const int wantOs = params_[P_OVERSAMPLE] >= 0.5 ? 4 : 2;
+    if (wantOs != osFactor_) configureOversampling(wantOs);
     int done = 0;
     while (done < n) {
         const int m = std::min(kSubBlock, n - done);
@@ -469,23 +539,23 @@ void SynthEngine::process(float* outL, float* outR, int n) {
         // Sub-oscillator rate with touch speed from the highest pressure (single SP line).
         double pmax = 0.0;
         for (const auto& v : voices_) if (v.gate) pmax = std::max(pmax, v.pressure);
-        const double subHz = 0.1 * std::pow(2000.0, clampd(p[P_SUB_SPEED] + 0.4 * p[P_TOUCH_SPEED] * pmax, 0.0, 1.0));
+        const double subHz = subRateHz(clampd(p[P_SUB_SPEED] + 0.4 * p[P_TOUCH_SPEED] * pmax, 0.0, 1.0));
         const int subFunc = static_cast<int>(params_[P_SUB_FUNC]);
         const double subSmoothC = 1.0 - std::exp(-1.0 / (0.0005 * fsOs_));
         const double subNoiseC = 1.0 - std::exp(-kTwoPi * subHz / fsOs_);
 
         // Ring modulator (spec 03 §9).
-        const double rmA = attackCoeff(attackTimeSec(p[P_RM_ATTACK]), fsOs_);
-        const double rmD = decayCoeff(decayTimeSec(p[P_RM_DECAY]), fsOs_);
+        const double rmA = attackCoeff(timeSec(TimeLaw::RmAttack, p[P_RM_ATTACK]), fsOs_);
+        const double rmD = decayCoeff(timeSec(TimeLaw::RmDecay, p[P_RM_DECAY]), fsOs_);
         const double rmMod = p[P_RM_MOD];
 
         // Patch gain [A]: the per-preset loudness trim (spec 03 §13).
         const double patchGain = std::pow(10.0, p[P_GAIN] / 20.0) * params_[P_EXPRESSION];
         for (int i = 0; i < m; ++i) {
-            double os[kOversample];
-            for (int k = 0; k < kOversample; ++k) {
+            double os[kMaxOversample];
+            for (int k = 0; k < osFactor_; ++k) {
                 updateFilters_ = (k == 0);
-                const double noise = noiseRng_.bipolar() * 1.2;
+                const double noise = noiseRng_.bipolar() * 1.2 * noiseScale_;
                 // Sub-oscillator.
                 subPhase_ += subHz / fsOs_;
                 if (subPhase_ >= 1.0) {
@@ -521,7 +591,7 @@ void SynthEngine::process(float* outL, float* outR, int n) {
                 } else {
                     rmEnv_ += (0.0 - rmEnv_) * rmD;
                 }
-                const double rmHz = 200.0 * clampd(p[P_RM_SPEED] + p[P_RM_DEPTH] * rmEnv_, 0.0, 2.0);
+                const double rmHz = rmRateHz(clampd(p[P_RM_SPEED] + p[P_RM_DEPTH] * rmEnv_, 0.0, 2.0));
                 rmPhase_ += rmHz / fsOs_;
                 if (rmPhase_ >= 1.0) rmPhase_ -= 1.0;
                 if (rmMod > 1e-5) {
@@ -530,7 +600,15 @@ void SynthEngine::process(float* outL, float* outR, int n) {
                 }
                 os[k] = bus;
             }
-            mono_[i] = static_cast<float>(decimator_.process(os[0], os[1]) * patchGain);
+            double y;
+            if (osFactor_ == 4) {
+                const double y0 = decimator4_.process(os[0], os[1]);   // order matters: sequence the calls
+                const double y1 = decimator4_.process(os[2], os[3]);
+                y = decimator_.process(y0, y1);
+            } else {
+                y = decimator_.process(os[0], os[1]);
+            }
+            mono_[i] = static_cast<float>(y * patchGain);
         }
 
         // Chorus / tremolo (stereo), reverb, volume, soft clip.

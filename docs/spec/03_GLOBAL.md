@@ -28,7 +28,8 @@ Paddles on the hardware run "backwards" (fully up = off); in the plugin every co
 - Waveforms (FUNCTION, 6 positions): sine, saw up, saw down, square, sample & hold (random
   step each cycle), noise (smoothed random, ~ speed rate). [S labels; the hardware's 6th is an
   external input — replaced by smoothed noise [A]]
-- Speed: `f = 0.1 Hz · 2000^x` (0.1…200 Hz, reaching the audio range) [D, IG00150 200 Hz @10 V].
+- Speed: `f = 0.5 Hz · 200^x` (0.5…100 Hz, reaching the audio range) [S range: Arturia CS-80 V
+  manual §5.2.2.3; D curve]. Was 0.1…200 Hz [D] before 2026-10-09.
 - Depths (all squared taper): VCO `±1 octave · d²` exponential; VCF `±5 V · d`; VCA tremolo
   `gain × (1 − d·(0.5 − 0.5·lfo))`.
 - **Touch Response** (aftertouch): Speed raises the sub-osc rate by `+0.4·touchSpeed·Pmax` in
@@ -39,7 +40,8 @@ Paddles on the hardware run "backwards" (fully up = off); in the plugin every co
 ## 4. PWM LFOs [S SUB board]
 
 One sine LFO per *line* (two in total, shared by the 8 cards of a line), rate
-`f = 0.1 Hz · 250^x` (0.1…25 Hz) [D], depth = `pwmDepth` (doc 02 §2).
+`f = 0.1 Hz · 1270^x` (0.1…127 Hz) [S range: Arturia CS-80 V manual §5.2.1.1; D curve; was
+0.1…25 Hz], depth = `pwmDepth` (doc 02 §2).
 
 ## 5. Initial pitch bend (scoop) [S §4.2, TRG4]
 
@@ -56,12 +58,20 @@ neutral at the centre: `t < 0.5: low·(1 − 2t)`, else `high·(2t − 1)`. Bril
 ## 7. Ribbon, bend, master controls
 
 - **Ribbon** [S §4.2]: pitch is relative to the first touch point; full ribbon width =
-  ±1 octave from there (range unknown, D). On release it returns to 0 instantly.
+  ±1 octave from there (range unknown, D). On the CS-80 the pitch returns to 0 on release.
+  **Ribbon Hold** [A] (`ribbon.hold`, default on, not stored): while the ribbon is touched
+  (`ribbon.touch`, set by the GUI) every sounding voice follows it from the bend it already
+  has; on release the voices keep their bend until they are re-struck or stolen. A note struck
+  later starts unbent (one struck during a touch follows the ribbon from that moment). Hold off
+  = the hardware's return to pitch. Panel: the lit "H" key left of the ribbon. A ribbon value written without a touch (host automation)
+  bends every voice globally and is not held. Bends are smoothed ~2 ms. Test T22.
   GUI: a drag strip above the keyboard area. MIDI pitch bend is an added equivalent with
   **Bend Range** (default 2 semitones) [A].
 - **Detune** (line II), **Mix** (line I ↔ II crossfade: `I·(1−mix)`, `II·mix`, with a
   1.0 centre boost so mix 0.5 ≈ both full: gains `min(1, 2(1−mix))`, `min(1, 2·mix)`) [D],
-  **Brilliance** (±4 V on both lines' cutoffs), **Resonance** (adds to both resonances).
+  **Brilliance** (±4 V on both lines' cutoffs), **Resonance** (bipolar −1..+1, adds to or
+  subtracts from both resonances, `−10 V · res` on VQ, doc 02 §4) [S bipolar range: Arturia
+  manual §5.2.2.6; was 0..1 before 2026-10-09, stored values keep their meaning].
 
 ## 8. Sustain [S §4.3, §7.1]
 
@@ -77,13 +87,15 @@ neutral at the centre: `t < 0.5: low·(1 − 2t)`, else `high·(2t − 1)`. Bril
 Acts on the **mono sum**. Its own sine carrier and its own AD envelope:
 
 ```
-env:  AD, attack 1 ms·1000^attack, decay 10 ms·1000^decay; retriggers only when a key goes
-      down while no key was held (monophonic, "after all keys are released")  [S]
-f_rm = 200 Hz · (speed + depth · env)        (IG00150: 200 Hz at 10 V)  [S calibration point]
+env:  AD, attack 3 ms·(530 ms/3 ms)^attack, decay 7 ms·(4.5 s/7 ms)^decay; retriggers only
+      when a key goes down while no key was held (monophonic, "after all keys are released") [S]
+f_rm = 0.25 Hz + 204.75 Hz · (speed + depth · env)      (clamped sum 0..2; unclipped by speed)
 out  = bus · (1 − mod) + bus · carrier · mod                  (mod = Modulation slider)
 ```
 
-Mild carrier leakage (−50 dB) and balanced-modulator softness `tanh` on the product [D B-option].
+Ranges 3–530 ms, 7 ms–4.5 s and 0.25–205 Hz from the Arturia CS-80 V manual §5.2.2.2 [S];
+the law stays linear in volts (IG00150 ~200 Hz at 10 V) with the 0.25 Hz floor as an offset
+[I]. Mild carrier leakage (−50 dB) and balanced-modulator softness `tanh` on the product [D B-option].
 
 ## 10. Expression / wah
 

@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 using namespace tannhauser;
@@ -148,6 +149,7 @@ static void testFilterEnvelope() {
     ParamValues v = defaultValues();
     v[lineParam(0, LP_AL)] = 1.0;
     v[lineParam(0, LP_HPF)] = 0.2;
+    v[lineParam(0, LP_FEG_D)] = 1.0;   // hold the peak while measuring
     setAll(e, v);
     e.noteOn(60, 0.0);
     std::vector<float> l(64), r(64);
@@ -158,37 +160,48 @@ static void testFilterEnvelope() {
 }
 
 static void testEnvelopeTimes() {
-    // T7: attack slider 0 -> ~1 ms, 1 -> ~1 s (time to reach the peak).
+    // T7: attack time to the peak and release time to 10 % follow the classic
+    // (2 ms .. 885 ms, 2 ms .. 11.5 s) and Long [A] (to 10 s / 40 s) ranges.
     const int sr = 48000;
-    for (double pos : { 0.0, 0.5, 1.0 }) {
-        SynthEngine e;
-        e.setSampleRate(sr);
-        ParamValues v = sinePatch();
-        v[lineParam(0, LP_VEG_A)] = pos;
-        setAll(e, v);
-        e.noteOn(60, 1.0);
-        std::vector<float> l(1), r(1);
-        int n = 0;
-        while (e.voice(0).line[0].veg.stage() == AmpEnvelope::Attack && n < 3 * sr) { e.process(l.data(), r.data(), 1); ++n; }
-        const double t = double(n) / sr, want = attackTimeSec(pos);
-        CHECK(std::fabs(t / want - 1.0) < 0.15 || std::fabs(t - want) < 0.0006, "T7 attack pos %.1f: %.4f s want %.4f", pos, t, want);
+    for (int longEnv = 0; longEnv < 2; ++longEnv) {
+        for (double pos : { 0.0, 0.5, 1.0 }) {
+            if (longEnv && pos == 0.0) continue;
+            SynthEngine e;
+            e.setSampleRate(sr);
+            ParamValues v = sinePatch();
+            v[lineParam(0, LP_VEG_A)] = pos;
+            v[P_ENV_LONG] = longEnv;
+            setAll(e, v);
+            e.noteOn(60, 1.0);
+            std::vector<float> l(1), r(1);
+            int n = 0;
+            while (e.voice(0).line[0].veg.stage() == AmpEnvelope::Attack && n < 12 * sr) { e.process(l.data(), r.data(), 1); ++n; }
+            const double t = double(n) / sr, want = timeSec(TimeLaw::VcaAttack, pos, longEnv);
+            CHECK(std::fabs(t / want - 1.0) < 0.15 || std::fabs(t - want) < 0.0006, "T7 attack pos %.1f long %d: %.4f s want %.4f",
+                  pos, longEnv, t, want);
+        }
+        for (double pos : { 0.0, 0.5 }) {
+            SynthEngine e;
+            e.setSampleRate(sr);
+            ParamValues v = sinePatch();
+            v[lineParam(0, LP_VEG_R)] = pos;
+            v[P_ENV_LONG] = longEnv;
+            setAll(e, v);
+            e.noteOn(60, 1.0);
+            std::vector<float> l(256), r(256);
+            for (int i = 0; i < 40; ++i) e.process(l.data(), r.data(), 256);
+            e.noteOff(60);
+            int n = 0;
+            while (e.voice(0).line[0].veg.value() > 0.1 && n < 20 * sr) { e.process(l.data(), r.data(), 1); ++n; }
+            const double t = double(n) / sr, want = timeSec(TimeLaw::VcaRelease, pos, longEnv);
+            CHECK(std::fabs(t / want - 1.0) < 0.15 || std::fabs(t - want) < 0.0006, "T7 release pos %.1f long %d: %.4f s want %.4f",
+                  pos, longEnv, t, want);
+        }
     }
-    // Release: time to fall to 10 %.
-    for (double pos : { 0.0, 0.5 }) {
-        SynthEngine e;
-        e.setSampleRate(sr);
-        ParamValues v = sinePatch();
-        v[lineParam(0, LP_VEG_R)] = pos;
-        setAll(e, v);
-        e.noteOn(60, 1.0);
-        std::vector<float> l(256), r(256);
-        for (int i = 0; i < 40; ++i) e.process(l.data(), r.data(), 256);
-        e.noteOff(60);
-        int n = 0;
-        while (e.voice(0).line[0].veg.value() > 0.1 && n < 20 * sr) { e.process(l.data(), r.data(), 1); ++n; }
-        const double t = double(n) / sr, want = decayTimeSec(pos);
-        CHECK(std::fabs(t / want - 1.0) < 0.15, "T7 release pos %.1f: %.4f s want %.4f", pos, t, want);
-    }
+    // The documented range end points (Arturia CS-80 V manual §5.2).
+    CHECK(std::fabs(timeSec(TimeLaw::VcfAttack, 1.0) - 0.580) < 1e-9 && std::fabs(timeSec(TimeLaw::VcaRelease, 1.0, true) - 40.0) < 1e-9,
+          "T7 time range end points");
+    CHECK(std::fabs(timePos(TimeLaw::VcfDecay, timeSec(TimeLaw::VcfDecay, 0.37)) - 0.37) < 1e-9, "T7 time law inverse");
 }
 
 static void testTouchPerVoice() {
@@ -364,6 +377,203 @@ static void testPresetLoudness() {
     std::printf("T16 preset loudness %.2f .. %.2f LUFS\n", lo, hi);
 }
 
+// Goertzel power at frequency f (Hz) of x with a 4-term Blackman-Harris window.
+static double tonePower(const std::vector<float>& x, size_t a, size_t n, double f, int sr) {
+    const double w = kTwoPi * f / sr, c = 2.0 * std::cos(w);
+    double s1 = 0.0, s2 = 0.0;
+    for (size_t i = 0; i < n; ++i) {
+        const double m = kTwoPi * double(i) / double(n);
+        const double win = 0.35875 - 0.48829 * std::cos(m) + 0.14128 * std::cos(2 * m) - 0.01168 * std::cos(3 * m);
+        const double s0 = x[a + i] * win + c * s1 - s2;
+        s2 = s1; s1 = s0;
+    }
+    return s1 * s1 + s2 * s2 - c * s1 * s2;
+}
+
+static void testAliasing() {
+    // T17: saw and pulse at G7 (3136 Hz), filter open: every alias image of
+    // the harmonics above Nyquist (|m f0 - n fsOs| below 20 kHz, at least
+    // 30 Hz from a harmonic) stays below -75 dB re the fundamental, at 2x and 4x.
+    const int sr = 48000;
+    for (int os = 2; os <= 4; os += 2) {
+        for (int wave = 0; wave < 2; ++wave) {
+            SynthEngine e;
+            e.setSampleRate(sr);
+            ParamValues v = defaultValues();
+            v[P_DRIFT] = 0.0; v[P_MIX] = 0.0; v[P_OVERSAMPLE] = os == 4;
+            v[lineParam(0, LP_LPF)] = 1.0; v[lineParam(0, LP_RES_L)] = 0.0;
+            v[lineParam(0, LP_IL)] = 0.0; v[lineParam(0, LP_AL)] = 0.0;
+            v[lineParam(0, LP_INIT_BRILL)] = 0.0; v[lineParam(0, LP_AFTER_BRILL)] = 0.0;
+            v[lineParam(0, LP_SAW)] = wave == 0; v[lineParam(0, LP_SQUARE)] = wave == 1; v[lineParam(0, LP_PW)] = 0.5;
+            v[lineParam(0, LP_VEG_A)] = 0.0; v[lineParam(0, LP_VEG_S)] = 1.0;
+            v[lineParam(1, LP_LEVEL)] = 0.0;
+            setAll(e, v);
+            e.noteOn(103, 1.0);
+            auto x = render(e, 1.5, sr);
+            const size_t a = sr / 2, n = sr;
+            const double f0 = e.lineFrequency(0, 0);
+            const double fund = tonePower(x, a, n, f0, sr);
+            double worst = -300.0, worstF = 0.0;
+            // Every image lands at |m f0 - k sr| in the output, whichever stage folded it.
+            const double fsOs = double(sr) * os;
+            for (int m = 1; m * f0 < 4.0 * fsOs; ++m) {
+                if (m * f0 < 0.5 * sr) continue;
+                for (int k = 1; k <= static_cast<int>(m * f0 / sr) + 1; ++k) {
+                    const double fa = std::fabs(m * f0 - double(k) * sr);
+                    if (fa < 30.0 || fa > 20000.0) continue;
+                    const double rel = fa / f0;
+                    if (std::fabs(rel - std::round(rel)) * f0 < 30.0) continue;
+                    const double db = 10.0 * std::log10(tonePower(x, a, n, fa, sr) / fund + 1e-30);
+                    if (db > worst) { worst = db; worstF = fa; }
+                }
+            }
+            CHECK(worst < -75.0, "T17 %s %dx: alias at %.0f Hz is %.1f dB (want < -75)", wave ? "pulse" : "saw", os, worstF, worst);
+        }
+    }
+}
+
+static void testNonlinearFilter() {
+    // T18: OTA SVF (spec 02 §4). Small signals: the linear SVF (gain Q at
+    // fc); large signals: the resonance compresses and odd harmonics appear.
+    const double fs = 96000.0, fc = 1000.0, q = 5.0;
+    auto run = [&](double amp, double& gain, double& h3) {
+        OtaSvf f;
+        f.setCoeffs(std::tan(kPi * fc / fs), 1.0 / q);
+        const int n = 96000;
+        std::vector<float> x(n), y(n);
+        double lp, bp, hp;
+        for (int i = 0; i < n; ++i) {
+            x[i] = static_cast<float>(amp * std::sin(kTwoPi * fc * i / fs));
+            f.tick(x[i], 1.0 / 1.2, lp, bp, hp);
+            y[i] = static_cast<float>(lp);
+        }
+        const double pin = tonePower(x, n / 2, n / 2, fc, 96000);
+        const double p1 = tonePower(y, n / 2, n / 2, fc, 96000), p3 = tonePower(y, n / 2, n / 2, 3 * fc, 96000);
+        gain = std::sqrt(p1 / pin);
+        h3 = 10.0 * std::log10(p3 / p1 + 1e-30);
+    };
+    double gSmall, h3Small, gBig, h3Big;
+    run(0.001, gSmall, h3Small);
+    run(1.0, gBig, h3Big);
+    CHECK(std::fabs(gSmall / q - 1.0) < 0.03, "T18 small-signal gain at fc %.3f want %.1f", gSmall, q);
+    CHECK(gBig < 0.7 * gSmall, "T18 resonance compression %.2f vs %.2f (want < 0.7x)", gBig, gSmall);
+    CHECK(h3Small < -80.0 && h3Big > -40.0, "T18 3rd harmonic %.1f dB small, %.1f dB large", h3Small, h3Big);
+}
+
+static void testJitter() {
+    // T19: cycle-to-cycle jitter (spec 02 §8): none at Drift 0; at Drift 1 an
+    // rms of 5e-4 x the card's factor (0.7..1.3).
+    const int sr = 48000;
+    for (double drift : { 0.0, 1.0 }) {
+        SynthEngine e;
+        e.setSampleRate(sr);
+        ParamValues v = sinePatch();
+        v[P_DRIFT] = drift;
+        setAll(e, v);
+        e.noteOn(84, 1.0);
+        std::vector<float> l(1), r(1);
+        double last = e.voice(0).line[0].jitter, sum2 = 0.0, maxDev = 0.0;
+        int count = 0;
+        for (int i = 0; i < sr; ++i) {
+            e.process(l.data(), r.data(), 1);
+            const double j = e.voice(0).line[0].jitter;
+            if (j != last) { sum2 += (j - 1.0) * (j - 1.0); ++count; last = j; }
+            maxDev = std::max(maxDev, std::fabs(j - 1.0));
+        }
+        const double rmsJ = count ? std::sqrt(sum2 / count) : 0.0;
+        if (drift == 0.0) CHECK(maxDev == 0.0, "T19 jitter at Drift 0: %.2g", maxDev);
+        else CHECK(count > 500 && rmsJ > 0.6 * 5e-4 && rmsJ < 1.4 * 5e-4, "T19 jitter rms %.3g over %d cycles", rmsJ, count);
+    }
+}
+
+static void testOversamplingModes() {
+    // T20: os.4x gives the same level as 2x (filtered chord, within 0.5 dB) and finite output.
+    const int sr = 48000;
+    double ref = 0.0;
+    for (int os : { 2, 4 }) {
+        SynthEngine e;
+        e.setSampleRate(sr);
+        ParamValues v = defaultValues();
+        v[P_DRIFT] = 0.0;
+        v[P_OVERSAMPLE] = os == 4;
+        setAll(e, v);
+        e.noteOn(48, 0.8); e.noteOn(60, 0.8);
+        auto x = render(e, 1.0, sr);
+        bool finite = true;
+        for (float s : x) finite = finite && std::isfinite(s);
+        const double r = rms(x, x.size() / 2, x.size());
+        if (os == 2) ref = r;
+        else CHECK(finite && std::fabs(20.0 * std::log10(r / ref)) < 0.5, "T20 4x rms %.4f vs 2x %.4f", r, ref);
+    }
+}
+
+static void testValueText() {
+    // T21: every parameter's displayed value (Hz at C4, Q, V, %, st, dB, times,
+    // named positions) parses back to the same slider position (spec 04).
+    for (uint32_t id = 0; id < PARAM_COUNT; ++id) {
+        const ParamInfo& p = paramInfo(id);
+        for (double f : { 0.0, 0.25, 0.5, 0.75, 1.0 }) {
+            double x = p.min + f * (p.max - p.min);
+            if (p.flags & PF_STEPPED) x = std::round(x);
+            for (bool longEnv : { false, true }) {
+                char buf[64];
+                paramValueText(id, x, buf, sizeof buf, longEnv);
+                double back = -99.0;
+                const bool ok = paramTextToValue(id, buf, &back, longEnv) && std::fabs(back - x) < 0.02 * (p.max - p.min) + 1e-9;
+                CHECK(ok, "T21 %s: '%s' parses to %.4f, want %.4f", p.name, buf, back, x);
+            }
+        }
+    }
+    char buf[64];
+    paramValueText(lineParam(0, LP_LPF), 0.5, buf, sizeof buf);
+    CHECK(std::strcmp(buf, "2.00 kHz at C4") == 0, "T21 LPF 0.5 shows '%s' want '2.00 kHz at C4'", buf);
+    paramValueText(lineParam(0, LP_RES_L), 1.0, buf, sizeof buf);
+    CHECK(std::strcmp(buf, "Q 5.00") == 0, "T21 Res L 1 shows '%s' want 'Q 5.00'", buf);
+}
+
+static void testRibbonHold() {
+    // T22: ribbon (spec 03 §7). Touch, slide +6 st, release: with Ribbon Hold the
+    // sounding note stays bent, a new note starts unbent; with Hold off it returns.
+    const int sr = 48000;
+    for (int hold = 0; hold < 2; ++hold) {
+        SynthEngine e;
+        e.setSampleRate(sr);
+        ParamValues v = sinePatch();
+        v[P_RIBBON_HOLD] = hold;
+        setAll(e, v);
+        std::vector<float> l(4096), r(4096);
+        e.noteOn(60, 1.0);
+        e.process(l.data(), r.data(), 512);
+        const double f0 = e.lineFrequency(0, 0);
+        e.setParam(P_RIBBON_TOUCH, 1.0);
+        e.process(l.data(), r.data(), 512);
+        e.setParam(P_RIBBON, 0.5);
+        e.process(l.data(), r.data(), 4096);
+        const double bent = cents(e.lineFrequency(0, 0), f0);
+        e.setParam(P_RIBBON_TOUCH, 0.0);
+        e.setParam(P_RIBBON, 0.0);
+        e.process(l.data(), r.data(), 4096);
+        const double after = cents(e.lineFrequency(0, 0), f0);
+        e.noteOn(67, 1.0);
+        e.process(l.data(), r.data(), 4096);
+        int vNew = -1;
+        for (int i = 0; i < kNumVoices; ++i) if (e.voice(i).key == 67) vNew = i;
+        const double fresh = vNew >= 0 ? cents(e.lineFrequency(vNew, 0), 261.6256 * std::pow(2.0, 7.0 / 12.0)) : 1e9;
+        CHECK(std::fabs(bent - 600.0) < 5.0, "T22 bend while touched %.1f cents want 600", bent);
+        CHECK(std::fabs(after - (hold ? 600.0 : 0.0)) < 5.0, "T22 hold %d: after release %.1f cents", hold, after);
+        CHECK(std::fabs(fresh) < 5.0, "T22 hold %d: new note %.1f cents off (want unbent)", hold, fresh);
+        // A second touch bends the held note further from where it was.
+        if (hold) {
+            e.setParam(P_RIBBON_TOUCH, 1.0);
+            e.process(l.data(), r.data(), 512);
+            e.setParam(P_RIBBON, -0.25);
+            e.process(l.data(), r.data(), 4096);
+            CHECK(std::fabs(cents(e.lineFrequency(0, 0), f0) - 300.0) < 5.0, "T22 second touch: %.1f cents want 300",
+                  cents(e.lineFrequency(0, 0), f0));
+        }
+    }
+}
+
 static void testCpu() {
     // T15: 8 voices (16 lines), 48 kHz.
     const int sr = 48000;
@@ -401,6 +611,12 @@ int main() {
     testPresetsRobust();
     testSampleRateInvariance();
     testPresetLoudness();
+    testAliasing();
+    testNonlinearFilter();
+    testJitter();
+    testOversamplingModes();
+    testValueText();
+    testRibbonHold();
     testCpu();
     std::printf("%d passed, %d failed\n", g_pass, g_fail);
     return g_fail == 0 ? 0 : 1;

@@ -20,22 +20,25 @@ inline double onePoleCoeff(double tauSec, double fs) {
     return 1.0 - std::exp(-1.0 / (tauSec * fs));
 }
 
-// PolyBLEP residual for a discontinuity of size 2 (from -1 to +1 is +2) at
-// t = 0, t = position since the discontinuity in [0,1), dt = phase increment.
-// Add (jump / 2) * polyBlep(t, dt).
-inline double polyBlep(double t, double dt) {
-    if (t < dt) {
-        const double x = t / dt;
-        return x + x - x * x - 1.0;
-    }
-    if (t > 1.0 - dt) {
-        const double x = (t - 1.0) / dt;
-        return x * x + x + x + 1.0;
-    }
-    return 0.0;
-}
-
 inline double wrap01(double x) { return x - std::floor(x); }
+
+// 4-point band-limited step residual (spec 02 §2): the step smoothed by a
+// cubic B-spline (support +-2 samples) minus the ideal step. tau = sample time
+// relative to the discontinuity, in samples; zero outside (-2, 2). Add
+// jump * blep4(tau) to the four samples around each jump.
+inline double blep4Rise(double u) {   // integral of the cubic B-spline from -2 to u - 2, u in [0, 2]
+    if (u < 1.0) {
+        const double u2 = u * u;
+        return u2 * u2 * (1.0 / 24.0);
+    }
+    const double x = u - 2.0;   // [-1, 0]
+    const double x2 = x * x;
+    return 0.5 + x * (4.0 - 2.0 * x2 - 0.75 * x2 * x) * (1.0 / 6.0);
+}
+inline double blep4(double tau) {
+    if (tau <= -2.0 || tau >= 2.0) return 0.0;
+    return tau < 0.0 ? blep4Rise(tau + 2.0) : -blep4Rise(2.0 - tau);
+}
 
 // xorshift64* random numbers: deterministic, allocation-free, audio-thread safe.
 class Rng {
@@ -55,26 +58,41 @@ private:
     uint64_t s_;
 };
 
-// TPT (Zavalishin / Simper) state-variable filter, trapezoidal integration.
-struct Svf {
+// OTA state-variable filter with saturating integrators (spec 02 §4, plan
+// 1.5): bp' = w T(u1), lp' = w T(bp), u1 = x - k bp - lp, T(v) = V tanh(v/V).
+// Trapezoidal; each sample the OTA gains tanh(v)/v are linearised at an
+// estimate of v and the linear TPT system is solved exactly, twice: predict
+// with the gains carried from the previous sample, correct with the gains at
+// the predicted voltages (which are carried on). Small signals give exactly
+// the linear SVF.
+struct OtaSvf {
     double ic1 = 0.0, ic2 = 0.0;
-    double a1 = 1.0, a2 = 0.0, a3 = 0.0, k = 2.0;
-    void reset() { ic1 = ic2 = 0.0; }
-    // g = tan(pi fc / fs), damping k = 1/Q.
-    void setCoeffs(double g, double damping) {
-        k = damping;
-        a1 = 1.0 / (1.0 + g * (g + k));
-        a2 = g * a1;
-        a3 = g * a2;
+    double g = 0.0, k = 2.0;
+    double s1 = 1.0, s2 = 1.0;   // OTA gains tanh(v/V)/(v/V) carried to the next sample
+    void reset() { ic1 = ic2 = 0.0; s1 = s2 = 1.0; }
+    void setCoeffs(double gIn, double damping) { g = gIn; k = damping; }
+    // Both OTA gains with one division.
+    static inline void gains(double a, double b, double& ga, double& gb) {
+        const double a2 = a * a, b2 = b * b;
+        const double na = a2 < 9.0 ? 27.0 + a2 : 1.0, da = a2 < 9.0 ? 27.0 + 9.0 * a2 : std::sqrt(a2);
+        const double nb = b2 < 9.0 ? 27.0 + b2 : 1.0, db = b2 < 9.0 ? 27.0 + 9.0 * b2 : std::sqrt(b2);
+        const double inv = 1.0 / (da * db);
+        ga = na * db * inv;
+        gb = nb * da * inv;
     }
-    // Returns lp/bp/hp through refs.
-    inline void tick(double v0, double& lp, double& bp, double& hp) {
-        const double v3 = v0 - ic2;
-        const double v1 = a1 * ic1 + a2 * v3;
-        const double v2 = ic2 + a2 * ic1 + a3 * v3;
-        ic1 = 2.0 * v1 - ic1;
-        ic2 = 2.0 * v2 - ic2;
-        lp = v2; bp = v1; hp = v0 - k * v1 - v2;
+    // invV = 1 / OTA saturation voltage. Returns lp/bp/hp through refs.
+    inline void tick(double x, double invV, double& lp, double& bp, double& hp) {
+        double G1 = g * s1, G2 = g * s2;
+        bp = (G1 * (x - ic2) + ic1) / (1.0 + G1 * (k + G2));
+        lp = G2 * bp + ic2;
+        hp = x - k * bp - lp;
+        gains(hp * invV, bp * invV, s1, s2);
+        G1 = g * s1; G2 = g * s2;
+        bp = (G1 * (x - ic2) + ic1) / (1.0 + G1 * (k + G2));
+        lp = G2 * bp + ic2;
+        hp = x - k * bp - lp;
+        ic1 = 2.0 * bp - ic1;
+        ic2 = 2.0 * lp - ic2;
     }
 };
 

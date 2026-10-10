@@ -16,7 +16,7 @@
 namespace tannhauser {
 
 constexpr int kNumVoices = 8;
-constexpr int kOversample = 2;
+constexpr int kMaxOversample = 4;   // 2x normally, 4x with the os.4x switch (plan 1.10)
 constexpr int kSubBlock = 16;   // host samples per control update
 
 // Per-card calibration record (spec 02 §8), at Drift = 1.
@@ -30,6 +30,7 @@ struct CardCalibration {
     double envScale = 0.0;     // relative envelope time error
     double feedthrough = 0.0;  // VCA bleed (linear gain)
     double phase0 = 0.0;
+    double jitter = 1.0;       // cycle-to-cycle period jitter factor
 };
 
 // Smoothed per-line control values for one sub-block (shared by the 8 cards of a line).
@@ -47,13 +48,18 @@ struct LineControls {
     double initBrill = 0.3, initLevel = 0.5, afterBrill = 0.3, afterLevel = 0.3;
     double pwmLfo = 0.0;   // this sub-block's PWM LFO value
     double mixGain = 1.0;
+    bool silent = false;   // Level or Mix at 0: the line is not rendered
 };
 
 struct LineState {
     CardCalibration cal;
     OuProcess drift;
     double phase = 0.0;
-    Svf hp, lp;
+    double jitter = 1.0;       // this cycle's frequency factor (spec 02 §8)
+    double blep[4]{};          // VCO output n-2 .. n+1 with band-limited step corrections
+    double phaseHist[2]{};     // phase at n-1, n-2 (sine aligned with the delayed saw/pulse)
+    bool pulseHigh = false;
+    OtaSvf hp, lp;
     OnePoleLp pole;
     FilterEnvelope feg;
     AmpEnvelope veg;
@@ -62,7 +68,7 @@ struct LineState {
     double fegCa = 1.0, fegCd = 1.0, fegCr = 1.0;
     double vegCa = 1.0, vegCd = 1.0, vegCr = 1.0;
     double qaH = 0.5, qaL = 0.5;
-    double kH = 2.0, kL = 2.0;   // last damping (filters updated every host sample)
+    double gain = 0.0;           // dynamics x level x keyboard level x mix, per host sample
 };
 
 struct Voice {
@@ -78,6 +84,9 @@ struct Voice {
     double glissClock = 0.0;
     double smoothSemis = 60.0;     // key voltage after the YM26700 low-pass
     double scoop = 0.0;            // initial pitch bend, semitones
+    double ribbonBase = 0.0;       // ribbon bend kept from earlier touches minus this touch's start
+    double ribbonTarget = 0.0;     // this voice's ribbon bend, semitones (spec 03 §7)
+    double ribbonSm = 0.0;         // ... smoothed ~2 ms
     double kbdBrillV = 0.0, kbdLevel = 1.0;
     double fKv = 261.6, fVco = 261.6;   // updated once per host sample
     LineState line[2];
@@ -122,6 +131,8 @@ public:
 
 private:
     double fs_ = 48000.0, fsOs_ = 96000.0;
+    int osFactor_ = 2;
+    double noiseScale_ = 1.0;   // keeps the noise density independent of fsOs_
     std::array<double, PARAM_COUNT> params_{};
     std::array<double, PARAM_COUNT> smooth_{};   // control-rate smoothed copy
     bool smoothInit_ = false;
@@ -135,7 +146,8 @@ private:
 
     // Performance state.
     double bendNorm_ = 0.0, modWheel_ = 0.0;
-    double ribbonSm_ = 0.0;
+    double ribbonSm_ = 0.0;        // ribbon moved without a touch (host automation): all voices
+    bool ribbonTouched_ = false;
 
     // Global modulators.
     Rng rng_{0x7A5E};
@@ -150,7 +162,8 @@ private:
     double rmPhase_ = 0.0;
 
     // Bus.
-    HalfbandDecimator decimator_;
+    HalfbandDecimator decimator_;      // 2x -> 1x
+    HalfbandDecimator decimator4_;     // 4x -> 2x (os.4x)
     ChorusTremolo chorus_;
     PlateReverb reverb_;
     std::vector<float> mono_, wetL_, wetR_;
@@ -163,6 +176,7 @@ private:
     double glideCoeff_ = 1.0, scoopDecay_ = 1.0;   // per oversampled sample
 
     void initCalibration();
+    void configureOversampling(int factor);
     void updateControls(int hostSamples);
     void startVoice(Voice& v, int key, double velocity);
     int allocateVoice(int key);
