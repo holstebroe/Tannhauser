@@ -4,7 +4,7 @@
 
 | Output | What it is | Code |
 | --- | --- | --- |
-| `tearwash225.clap` | Stand-alone stereo reverb plugin, own UI, flavour switch 224 / 224X / 224XL / 225 | `src/tearwash/` (engine), `src/tearwash/clap/`, `src/tearwash/gui/` |
+| `tearwash225.clap` | Stand-alone stereo reverb plugin, own UI, flavour switch 224 / 224X / 224XL / 225 | `src/tearwash/engine/`, `src/tearwash/plugin/` (CLAP wrapper, parameters, panel) |
 | Tannhäuser reverb | The same engine as a library inside `tannhauser.clap`, default flavour 224 | `tannhauser_core` links `tearwash_engine` |
 | `tearwash_calib` | Offline comparison against the ROM oracle (04) | `src/tests/tearwash_calib_main.cpp` |
 | `tearwash_oracle` | Out-of-tree driver for the BlueBox emulator (04 §1) | `tools/oracle/` |
@@ -59,9 +59,17 @@ src/tearwash/
               Programs*.cpp        algorithm networks per flavour
               Control.hpp/.cpp     slider laws, ramps, modulation, decay optimisation
               Tearwash.hpp/.cpp    public engine API (flavour, program, params, process)
-  clap/       Tearwash225Clap.cpp
-  gui/        panel (shares src/gui infrastructure with Tannhäuser)
+  plugin/     TwParams.hpp/.cpp     parameter table (03 §5), value text
+              TearwashClap.hpp/.cpp CLAP wrapper: engine swap, dry/wet alignment, state
+              TwGui.hpp/.cpp        panel (uses src/gui Graphics, ModernDraw and fonts)
 ```
+
+Plugin threading: a program or flavour change builds a new engine on the main thread and passes
+it to the audio thread through an atomic slot; the replaced engine returns through a second
+slot and is freed on the main thread. Register changes of the running program are applied on
+the audio thread (`Engine::setControls` does not allocate). The plugin reports one latency per
+sample rate, that of the longest loop (109 steps); each program's wet path and the dry path are
+delayed up to it, so a program change never changes the latency.
 
 Rules (from the Tannhäuser CLAUDE.md, unchanged): C++17, no third-party DSP or GUI libraries,
 nothing allocates, locks or throws on the audio thread, coefficients from times and frequencies.
@@ -72,7 +80,8 @@ Faithful by default: integer control codes (sliders are 8-bit, most laws use cod
 modulation, 16-bit arithmetic with the hardware's truncation and saturation, converter noise and
 gain-ranging, original bugs. Added, defaulting off where it changes the sound: Mix and dry path
 (the 224 has no dry path [S C§3]), input/output gain, parameter smoothing for host automation,
-"clean" mode (float arithmetic, no converter noise), the 225 flavour.
+"clean" converters (no gain-ranged quantisation at the ADC and DAC; the core keeps its integer
+arithmetic), the 225 flavour.
 
 ## 6. Tannhäuser integration
 

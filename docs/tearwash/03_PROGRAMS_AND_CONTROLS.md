@@ -124,12 +124,14 @@ measured RT, not to the number [S C§8.6].
 
 ## 5. Plugin parameters (Tearwash 225)
 
-Stable ids, append only (Tannhäuser rule). Codes are stored as *v*/255.
+Stable ids, append only (Tannhäuser rule). Codes are stored as *v*/255; the panel and the
+mouse wheel move them in whole codes, host automation is quantised to the nearest code
+(`src/tearwash/plugin/TwParams.cpp`).
 
 | Id | Key | Name | Range | Flavours |
 | --- | --- | --- | --- | --- |
 | 0 | `flavour` | Flavour | 224 / 224X / 224XL / 225 | all |
-| 1 | `program` | Program | index into the flavour's list | 224, X, XL |
+| 1 | `program` | Program | 0–31, index into the flavour's list (clamped to its length) | 224, X, XL |
 | 2 | `bass` | Bass (LF) Decay | code | 224, X, XL |
 | 3 | `mid` | Mid Decay | code | all (225: Decay) |
 | 4 | `xover` | Crossover | code | 224, X, XL |
@@ -146,9 +148,14 @@ Stable ids, append only (Tannhäuser rule). Codes are stored as *v*/255.
 | 15 | `hfbw` | HF Bandwidth | code | X, XL |
 | 16 | `mix` | Mix [A] | 0–100 % | all |
 | 17 | `ingain` | Input Gain [A] | −12 … +12 dB | all |
-| 18 | `outgain` | Output Gain [A] | −∞ … +12 dB | all |
-| 19 | `clean` | Clean Mode [A] (no converter noise, float core) | on / off | 224, X, XL |
-| 20 | `bugfix` | Bug Fix [A] | on / off | 224 |
+| 18 | `outgain` | Output Gain [A] | −60 dB (= −∞) … +12 dB | all |
+| 19 | `clean` | Clean Converters [A] (no gain-ranged quantisation at ADC and DAC; integer core kept) | on / off | 224, X, XL |
+| 20 | `bugfix` | Bug Fix [A] (no effect until the 224 networks exist, TW4/5.4) | on / off | 224 |
+
+Defaults: flavour 224XL, CONCERT HALL with its factory codes, Mix 35 % [D]. Until the 224 and
+224X networks exist (TW1.5–1.6) those two flavours offer and run the 224XL programs, and the
+panel says so. The 225 uses Mid as Decay, Treble as Tone and Predelay (0–150 ms) and dims the
+rest. Rear Outputs takes B/D instead of A/C. The dry path is delayed by the plugin latency.
 
 Program change loads the program's factory codes (224XL: the codes the oracle reads back after
 loading the program [R], subject to D-T3; 224: a default set [D]) unless Immed [S C§3] is on

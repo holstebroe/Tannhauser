@@ -15,11 +15,15 @@ namespace tearwash {
 template <int NCH>
 class StreamResampler {
 public:
+    // Delay of a resampler inRate → outRate in input samples (what setup() returns).
+    static double delayFor(double inRate, double outRate) {
+        return kZeros / (2.0 * 0.46 * std::min(1.0, outRate / inRate));
+    }
     // inRate → outRate. Returns the delay in input samples.
     double setup(double inRate, double outRate) {
         step_ = inRate / outRate;
         cutoff_ = 0.46 * std::min(1.0, outRate / inRate);   // cycles per input sample
-        half_ = kZeros / (2.0 * cutoff_);                    // kernel half-length, input samples
+        half_ = delayFor(inRate, outRate);                   // kernel half-length, input samples
         const int n = kZeros * kRes + 2;
         table_.assign(n, 0.0f);
         const double beta = 8.0, i0b = besselI0(beta);

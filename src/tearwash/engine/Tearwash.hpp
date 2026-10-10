@@ -61,6 +61,15 @@ public:
     double coreRate() const { return coreRate_; }
     // Fixed latency from input to output in host samples.
     double latency() const { return latency_; }
+    // The same for a program of the given loop length at host rate fs (the longest loop, 109
+    // steps, has the lowest core rate and the largest latency).
+    static double latencyFor(double fs, int loopLength) {
+        const double core = kMasterHz / kTicksPerStep / loopLength;
+        return StreamResampler<2>::delayFor(fs, core) + StreamResampler<4>::delayFor(core, fs) * fs / core + kSlack;
+    }
+    // Clean converters [A]: no gain-ranged quantisation at the ADC and DAC (the core keeps its
+    // integer arithmetic).
+    void setCleanConverters(bool on) { clean_ = on; }
 
 private:
     void configure();
@@ -69,6 +78,7 @@ private:
     ModWalker walker_;
     DecayOptimiser decayOpt_;
     bool modeEnh_ = true;
+    bool clean_ = false;
     XlRegs regs_;
     // Predelay ramp [D]: the predelayed input's gain steps to 0, the offset moves, it steps back.
     void controlTick();

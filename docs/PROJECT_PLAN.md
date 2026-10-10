@@ -148,8 +148,8 @@ Spec in `docs/tearwash/`, plan and issue tables in **`docs/tearwash/PLAN.md`** (
 | --- | --- | --- |
 | 9.1 | TW0 spec + plan | ✅ |
 | 9.2 | TW1 ROM oracle (BlueBox, 224XL V8.21), calibration tool, baseline of the current plate | 🟡 224X / 224 oracles open |
-| 9.3 | TW2–TW5 engine (virtual 224 core, system layer, algorithms, controls) | ⬜ |
-| 9.4 | TW6 `tearwash225.clap` with own UI; TW7 Tannhäuser integration (224 default) | ⬜ |
+| 9.3 | TW2–TW5 engine (virtual 224 core, system layer, algorithms, controls) | 🟡 224XL: 5 of 22 programs bit-exact |
+| 9.4 | TW6 `tearwash225.clap` with own UI; TW7 Tannhäuser integration (224 default) | 🟡 plugin built; TW7 open |
 
 ### WP8 — Later / nice to have
 | ID | Issue | Status |
@@ -206,5 +206,7 @@ Spec in `docs/tearwash/`, plan and issue tables in **`docs/tearwash/PLAN.md`** (
 - 2026-10-10 — WP9 started: Tearwash 225 spec and plan (`docs/tearwash/`), BlueBox-based 224XL
   oracle (`tools/oracle/`), `tearwash_calib`, baseline report of the current plate against 22
   original programs (`docs/tearwash/reports/baseline_plate_vs_224XL.md`).
+- 2026-10-10 — WP9: native 224XL networks for CONCERT HALL, ROOM, PLATE, SMALL PLATE and CHAMBER,
+  bit-exact against the oracle; `tearwash225.clap` with its own panel (`docs/tearwash/PLAN.md`).
 - Next suggested steps: P-1 confirmation with a reference recording; 1.5 nonlinear SVF;
   1.12 CPU; 4.7 re-voicing against recordings; 0.4 VST3; 0.5 macOS GUI.

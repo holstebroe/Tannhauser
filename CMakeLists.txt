@@ -112,7 +112,32 @@ target_link_libraries(tearwash_core_test PRIVATE tearwash_engine)
 add_executable(tearwash_calib src/tests/tearwash_calib_main.cpp)
 target_link_libraries(tearwash_calib PRIVATE tannhauser_core tearwash_engine)
 
+# Tearwash 225 plugin (docs/tearwash/PLAN.md TW6).
+set(TEARWASH_PLUGIN_SOURCES
+    src/tearwash/plugin/TwParams.cpp
+    src/tearwash/plugin/TearwashClap.cpp
+    src/tearwash/plugin/TwGui.cpp
+    src/gui/Font.cpp
+    src/gui/Graphics.cpp
+    src/gui/modern/ModernDraw.cpp
+)
+add_library(tearwash225 MODULE ${TEARWASH_PLUGIN_SOURCES})
+target_link_libraries(tearwash225 PRIVATE tearwash_engine tannhauser_core ${GUI_LIBS})
+set_target_properties(tearwash225 PROPERTIES PREFIX "" SUFFIX ".clap" OUTPUT_NAME "tearwash225")
+if(UNIX AND NOT APPLE)
+    set_target_properties(tearwash225 PROPERTIES CXX_VISIBILITY_PRESET hidden C_VISIBILITY_PRESET hidden)
+endif()
+add_custom_target(deploy_tearwash
+    COMMAND ${CMAKE_COMMAND} -DCLAP_FILE=$<TARGET_FILE:tearwash225>
+            -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/DeployClap.cmake
+    COMMENT "Deploying tearwash225.clap to $CLAPTEST"
+    VERBATIM)
+add_dependencies(deploy_tearwash tearwash225)
+add_executable(tearwash_gui_test ${TEARWASH_PLUGIN_SOURCES} src/tests/tearwash_gui_test_main.cpp)
+target_link_libraries(tearwash_gui_test PRIVATE tearwash_engine tannhauser_core ${GUI_LIBS})
+
 enable_testing()
 add_test(NAME dsp COMMAND tannhauser_dsp_test)
 add_test(NAME gui COMMAND tannhauser_gui_test)
 add_test(NAME tearwash_core COMMAND tearwash_core_test WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+add_test(NAME tearwash_gui COMMAND tearwash_gui_test)

@@ -18,9 +18,9 @@ void Engine::setProgram(std::unique_ptr<Program> p) {
 
 void Engine::configure() {
     coreRate_ = kMasterHz / kTicksPerStep / prog_->loopLength();
-    const double dIn = in_.setup(fs_, coreRate_);          // host samples
-    const double dOut = out_.setup(coreRate_, fs_);        // core samples
-    latency_ = dIn + dOut * fs_ / coreRate_ + kSlack;
+    in_.setup(fs_, coreRate_);
+    out_.setup(coreRate_, fs_);
+    latency_ = latencyFor(fs_, prog_->loopLength());
     // 224X converter emphasis: +12 dB shelf (50 µs / 12.5 µs) and its inverse (02 §1).
     for (auto& s : pre_) s.init(fs_, 50e-6, 12.5e-6);
     for (auto& s : de_) s.init(fs_, 12.5e-6, 50e-6);
@@ -111,8 +111,8 @@ void Engine::process(const float* inL, const float* inR, float* const* out, int 
         in_.push(x);
         float c[2];
         while (in_.pull(c)) {
-            state_.inL = fpcQuantize(toWord(c[0]));
-            state_.inR = fpcQuantize(toWord(c[1]));
+            state_.inL = clean_ ? toWord(c[0]) : fpcQuantize(toWord(c[0]));
+            state_.inR = clean_ ? toWord(c[1]) : fpcQuantize(toWord(c[1]));
             if ((ctlPhase_ += 1.0) >= ctlInterval_) { ctlPhase_ -= ctlInterval_; controlTick(); }
             if (decayOpt_.tick(state_.inL, state_.inR, (regs_.options & 0x80) != 0, prog_->decayReductionMax()))
                 prog_->setDecayReduction(decayOpt_.reduction());
@@ -125,7 +125,7 @@ void Engine::process(const float* inL, const float* inR, float* const* out, int 
                 }
             prog_->tick(state_);
             float d[4];
-            for (int k = 0; k < 4; ++k) d[k] = fpcQuantize(state_.dac[k]) * (1.0f / 32768.0f);
+            for (int k = 0; k < 4; ++k) d[k] = (clean_ ? state_.dac[k] : fpcQuantize(state_.dac[k])) * (1.0f / 32768.0f);
             out_.push(d);
         }
         float y[4] = { 0, 0, 0, 0 };

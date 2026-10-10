@@ -37,6 +37,8 @@ jobs:
       run: |
         build/tannhauser_dsp_test
         build/tannhauser_gui_test build/gui_snapshot.ppm
+        build/tearwash_core_test
+        build/tearwash_gui_test build/tearwash_snapshot.ppm
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
@@ -46,6 +48,9 @@ jobs:
           build/tannhauser.clap
           build/Release/tannhauser.clap
           build/gui_snapshot.ppm
+          build/tearwash225.clap
+          build/Release/tearwash225.clap
+          build/tearwash_snapshot.ppm
         if-no-files-found: ignore
 
   release:

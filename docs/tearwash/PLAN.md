@@ -71,10 +71,10 @@ below it passes its tests.
 ### TW6 — Tearwash 225 plugin
 | ID | Issue | Status |
 | --- | --- | --- |
-| 6.1 | `tearwash_engine` library + CLAP plugin (stereo in/out, params 03 §5, state, latency) | ⬜ |
-| 6.2 | GUI: remote-head-style panel (224 layout C§11.5 / LARC look for XL), flavour switch, program buttons, six sliders, option buttons, display, headroom meters, overflow LED | ⬜ |
+| 6.1 | `tearwash_engine` library + CLAP plugin (stereo in/out, params 03 §5, state, fixed latency, main-thread engine swap) | ✅ (224 / 224X run the XL programs until TW4.5–4.6) |
+| 6.2 | GUI: remote-head-style panel (224 layout C§11.5 / LARC look for XL), flavour switch, program buttons, six sliders, option buttons, display, headroom meters, overflow LED | 🟡 one panel for all flavours (`TwGui`); a 224-specific layout later |
 | 6.3 | Presets: per-flavour factory programs + a small library (D-T3 for XL factory codes) | ⬜ |
-| 6.4 | `tearwash225_gui_test` (render, hit tests, state round trip) | ⬜ |
+| 6.4 | `tearwash_gui_test` (every flavour and program through `process`, latency alignment, panel render and controls, host program change, state round trip) | ✅ |
 
 ### TW7 — Tannhäuser integration (01 §6)
 | ID | Issue | Status |
@@ -186,3 +186,9 @@ excitations.
   network and laws bit-exact first time (linear predelay 34·v up to E0, four MID-group
   allpasses, no DEFINITION). Five programs: 3.5 % band RT, 0.9 dB spectrum, NED 0.056,
   IACC 0.004. 77 core checks.
+- 2026-10-10 — `tearwash225.clap` (TW6): stereo effect around the engine and the Tannhäuser plate
+  (225), the 21 parameters of 03 §5, program change loads factory codes (GUI and host), engine
+  swap through atomic slots, one latency per rate (longest loop) with the dry and wet paths
+  aligned to it, clean converters [A], text state; procedural panel with flavour switch,
+  program buttons, six faders, space knobs, options, level knobs, LED display and headroom
+  meter. `tearwash_gui_test` 96 checks.
